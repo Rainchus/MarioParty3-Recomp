@@ -62,3 +62,6 @@ RSPRecomp
 
 # Controller mappings file
 gamecontrollerdb.txt
+
+#Cmake build directory
+build-cmake/

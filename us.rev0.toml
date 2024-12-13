@@ -1,0 +1,14 @@
+# Config file for Mario Party 3 US Recompilation.
+
+[input]
+entrypoint = 0x80000400
+# Paths are relative to the location of this config file.
+elf_path = "marioparty3.elf"
+output_func_path = "RecompiledFuncs"
+
+[patches]
+stubs = [
+    "func_80071B50_72750",
+    "func_80071C8C_7288C",
+    "func_800818C8_824C8",
+]
