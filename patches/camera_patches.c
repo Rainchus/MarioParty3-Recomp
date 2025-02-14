@@ -9,6 +9,8 @@
 #include "z64shrink_window.h"
 #include "z64player.h"
 
+static bool camera_fixes = false;
+
 static bool prev_analog_cam_active = false;
 static bool can_use_analog_cam = false;
 static bool analog_cam_active = false;
@@ -25,6 +27,10 @@ float analog_camera_y_sensitivity = 500.0f;
 // float analog_camera_acceleration = 500.0f;
 
 static const float analog_cam_threshold = 0.1f;
+
+RECOMP_EXPORT void recomp_set_camera_fixes(bool new_val) {
+    camera_fixes = new_val;
+}
 
 void update_analog_camera_params(Camera* camera) {
     // recomp_printf("Camera at: %.2f %.2f %.2f\n"
@@ -48,17 +54,17 @@ void update_analog_camera_params(Camera* camera) {
 
 void update_analog_cam(Camera* c) {
     can_use_analog_cam = true;
-    
+
     Player* player = GET_PLAYER(c->play);
     // recomp_printf("  val: %d\n", func_80123434(player));
-    
+
     // Check if the player just started Z targeting and reset to auto cam if so.
     static bool prev_targeting_held = false;
     bool targeting_held = func_80123434(player) || player->lockOnActor != NULL;
     if (targeting_held && !prev_targeting_held) {
         analog_cam_active = false;
     }
-    
+
     // Enable analog cam if the right stick is held.
     float input_x, input_y;
     recomp_get_camera_inputs(&input_x, &input_y);
@@ -66,12 +72,12 @@ void update_analog_cam(Camera* c) {
     if (fabsf(input_x) >= analog_cam_threshold || fabsf(input_y) >= analog_cam_threshold) {
         analog_cam_active = true;
     }
-    
+
     if (analog_cam_skip_once) {
         analog_cam_active = false;
         analog_cam_skip_once = false;
     }
-    
+
     // Record the Z targeting state.
     prev_targeting_held = targeting_held;
 
@@ -92,7 +98,7 @@ void update_analog_cam(Camera* c) {
 
         analog_camera_pos.pitch += analog_camera_pitch_vel;
         analog_camera_pos.yaw += analog_camera_yaw_vel;
-        
+
         if (analog_camera_pos.pitch > 0x36B0) {
             analog_camera_pos.pitch = 0x36B0;
         }
@@ -782,9 +788,9 @@ RECOMP_PATCH s32 Camera_Normal1(Camera* camera) {
     }
 
     // @recomp Update the analog camera.
-    if (recomp_analog_cam_enabled()) {
+    if (recomp_get_analog_cam_enabled()) {
         update_analog_cam(camera);
-        
+
         if (analog_cam_active) {
             spB4.pitch = analog_camera_pos.pitch;
             // spB4.r = analog_camera_pos.r;
@@ -838,7 +844,7 @@ RECOMP_PATCH s32 Camera_Normal1(Camera* camera) {
     phi_f2 = (gSaveContext.save.saveInfo.playerData.health <= 0x10) ? 0.8f : 1.0f;
 
     // @recomp Don't zoom in on low health when dual analog is used
-    if (recomp_analog_cam_enabled()) {
+    if (recomp_get_analog_cam_enabled()) {
         phi_f2 = 1.0f;
     }
 
@@ -1017,14 +1023,14 @@ RECOMP_PATCH s32 Camera_Jump2(Camera* camera) {
         camera->pitchUpdateRateInv = 100.0f;
         camera->rUpdateRateInv = 100.0f;
     }
-    
+
     spB4.pitch = CLAMP_MAX(spB4.pitch, DEG_TO_BINANG(60.43f));
     spB4.pitch = CLAMP_MIN(spB4.pitch, -DEG_TO_BINANG(60.43f));
 
     // @recomp Update the analog camera.
-    if (recomp_analog_cam_enabled()) {
+    if (recomp_get_analog_cam_enabled()) {
         update_analog_cam(camera);
-        
+
         if (analog_cam_active) {
             spB4.pitch = analog_camera_pos.pitch;
             // spB4.r = analog_camera_pos.r;
@@ -1064,6 +1070,10 @@ RECOMP_PATCH s32 Camera_Jump2(Camera* camera) {
  */
 // @recomp Patched for analog cam.
 RECOMP_PATCH s32 Camera_Parallel1(Camera* camera) {
+    // @recomp
+    static bool prev_targeting_held = false;
+    bool isChargingDekuFlowerDive = !!(((Player*)camera->focalActor)->stateFlags3 & PLAYER_STATE3_100);
+
     Vec3f* eye = &camera->eye;
     Vec3f* at = &camera->at;
     Vec3f* eyeNext = &camera->eyeNext;
@@ -1088,6 +1098,10 @@ RECOMP_PATCH s32 Camera_Parallel1(Camera* camera) {
     s32 phi_a0_2;
     CameraModeValue* values;
     f32 yNormal;
+
+    // @recomp Read timer4 from timer2.
+    s16 timer4 = rwData->timer2 >> 5; // @recomp Used to check if z-target can be quit. Mirrors timer2 values during z-target in unmodified function.
+    rwData->timer2 &= 0x001F;
 
     if (!RELOAD_PARAMS(camera)) {
     } else {
@@ -1151,6 +1165,8 @@ RECOMP_PATCH s32 Camera_Parallel1(Camera* camera) {
                 rwData->timer2 = 20;
             } else {
                 rwData->timer2 = 6;
+                // @recomp Initiate timer4 for z-target.
+                timer4 = 6;
             }
 
             if ((camera->focalActor == &GET_PLAYER(camera->play)->actor) && (camera->mode == CAM_MODE_CHARGE)) {
@@ -1187,12 +1203,55 @@ RECOMP_PATCH s32 Camera_Parallel1(Camera* camera) {
             rwData->unk_26 = 1;
             camera->animState = 1;
             sCameraInterfaceFlags = roData->interfaceFlags;
+
+            // @recomp Reset prev_targeting_held after transition.
+            prev_targeting_held = false;
+
             break;
+    }
+
+    // @recomp Change behavior for z-target only.
+    if (camera_fixes) {
+        if ((roData->interfaceFlags & (PARALLEL1_FLAG_3 | PARALLEL1_FLAG_2 | PARALLEL1_FLAG_1)) == PARALLEL1_FLAG_1) {
+            Player* player = GET_PLAYER(camera->play);
+            bool targeting_held = func_80123434(player) || player->lockOnActor != NULL;
+
+            // @recomp Fix camera rotating with player if z-target gets released too fast after transition.
+            if ((targeting_held) && (!prev_targeting_held)) {
+                // @recomp Reset timer2 to avoid immediate rotation, if player presses, releases and presses z-target in a very short time-window.
+                rwData->timer2 = 6;
+                rwData->unk_1E = BINANG_ROT180(camera->focalActorPosRot.rot.y) + roData->unk_22;
+            }
+
+            // @recomp Maintain vanilla behavior for quitting z-target.
+            if ((timer4 == 0) && (!targeting_held)) {
+                rwData->timer2 = 0;
+            }
+
+            // @recomp Decrease timer4 only in cases where timer2 would be decreased.
+            if ((timer4 > 0)
+            && (rwData->timer3 <= 0)) {
+                timer4--;
+            }
+
+            prev_targeting_held = targeting_held;
+        }
     }
 
     if (rwData->timer2 != 0) {
         switch (roData->interfaceFlags & (PARALLEL1_FLAG_3 | PARALLEL1_FLAG_2 | PARALLEL1_FLAG_1)) {
             case PARALLEL1_FLAG_1:
+                if (camera_fixes) {
+                    // @recomp Fix camera rotating with player if z-target gets released too fast after transition.
+                    if (isChargingDekuFlowerDive) {
+                        // @recomp Fix camera wiggle during dive into deku flower.
+                        rwData->unk_1E = BINANG_ROT180(camera->focalActorPosRot.rot.y) + roData->unk_22;
+                    }
+                    rwData->unk_20 = roData->unk_20;
+                    break;
+                }
+                // @recomp fallthrough
+
             case (PARALLEL1_FLAG_3 | PARALLEL1_FLAG_2 | PARALLEL1_FLAG_1):
                 rwData->unk_1E = BINANG_ROT180(camera->focalActorPosRot.rot.y) + roData->unk_22;
                 rwData->unk_20 = roData->unk_20;
@@ -1372,9 +1431,9 @@ RECOMP_PATCH s32 Camera_Parallel1(Camera* camera) {
     }
 
     // @recomp Update the analog camera.
-    if (recomp_analog_cam_enabled()) {
+    if (recomp_get_analog_cam_enabled()) {
         update_analog_cam(camera);
-        
+
         if (analog_cam_active) {
             sp90.pitch = analog_camera_pos.pitch;
             // sp90.r = analog_camera_pos.r;
@@ -1400,10 +1459,20 @@ RECOMP_PATCH s32 Camera_Parallel1(Camera* camera) {
             func_800CBFA4(camera, at, eye, 3);
         }
 
-        if (rwData->timer2 != 0) {
-            sUpdateCameraDirection = true;
+        if (camera_fixes) {
+            // @recomp Fix camera not updating input dir for the first few frames after transition.
+            if ((isChargingDekuFlowerDive) && (rwData->timer2 != 0)) {
+                // @recomp Fix camera wiggle during dive into deku flower.
+                sUpdateCameraDirection = true;
+            } else {
+                sUpdateCameraDirection = false;
+            }
         } else {
-            sUpdateCameraDirection = false;
+            if (rwData->timer2 != 0) {
+                sUpdateCameraDirection = true;
+            } else {
+                sUpdateCameraDirection = false;
+            }
         }
     }
 
@@ -1411,6 +1480,9 @@ RECOMP_PATCH s32 Camera_Parallel1(Camera* camera) {
     camera->roll = Camera_ScaledStepToCeilS(0, camera->roll, 0.5f, 5);
     camera->atLerpStepScale = Camera_ClampLerpScale(camera, sp72 ? roData->unk_1C : roData->unk_18);
     rwData->unk_26 &= ~1;
+
+    // @recomp Save timer4 in unused bits of timer2.
+    rwData->timer2 |= timer4 << 5;
 
     return 1;
 }
@@ -1580,11 +1652,11 @@ RECOMP_PATCH s32 Camera_Normal3(Camera* camera) {
             Camera_UnsetStateFlag(camera, CAM_STATE_DISABLE_MODE_CHANGE);
         }
     }
-    
+
     // @recomp Update the analog camera.
-    if (recomp_analog_cam_enabled()) {
+    if (recomp_get_analog_cam_enabled()) {
         update_analog_cam(camera);
-        
+
         if (analog_cam_active) {
             sp80.pitch = analog_camera_pos.pitch;
             // sp80.r = analog_camera_pos.r;
@@ -1820,9 +1892,9 @@ RECOMP_PATCH s32 Camera_Jump3(Camera* camera) {
     }
 
     // @recomp Update the analog camera.
-    if (recomp_analog_cam_enabled()) {
+    if (recomp_get_analog_cam_enabled()) {
         update_analog_cam(camera);
-        
+
         if (analog_cam_active) {
             spAC.pitch = analog_camera_pos.pitch;
             // spAC.r = analog_camera_pos.r;
@@ -1871,7 +1943,7 @@ void analog_cam_post_play_update(PlayState* play) {
     // recomp_printf("prev_analog_cam_active: %d can_use_analog_cam: %d\n", prev_analog_cam_active, can_use_analog_cam);
     // recomp_printf("setting: %d mode: %d func: %d\n", active_cam->setting, active_cam->mode, sCameraSettings[active_cam->setting].cameraModes[active_cam->mode].funcId);
     // recomp_printf("active cam yaw %d\n", Camera_GetInputDirYaw(GET_ACTIVE_CAM(play)));
-    
+
     // Update parameters for the analog cam if the game is unpaused.
     if (play->pauseCtx.state == PAUSE_STATE_OFF && R_PAUSE_BG_PRERENDER_STATE == PAUSE_BG_PRERENDER_OFF) {
         update_analog_camera_params(active_cam);
@@ -1934,7 +2006,7 @@ RECOMP_PATCH void func_809EC568(Boss04* this, PlayState* play) {
             this->unk_2D0 = 2000.0f;
             // @recomp do not require being in c-up mode if analog cam is enabled
             // also, use the new variable instead of the vanilla value to check if the player is looking at the boss.
-            if (((player->stateFlags1 & PLAYER_STATE1_100000) || (recomp_analog_cam_enabled())) && (this->actor.projectedPos.z > 0.0f) &&
+            if (((player->stateFlags1 & PLAYER_STATE1_100000) || (recomp_get_analog_cam_enabled())) && (this->actor.projectedPos.z > 0.0f) &&
                 (fabsf(this->actor.projectedPos.x) < maxProjectedPosToStartFight) && (fabsf(this->actor.projectedPos.y) < maxProjectedPosToStartFight)) {
                 if ((this->unk_704 >= 15) && (CutsceneManager_GetCurrentCsId() == CS_ID_NONE)) {
                     Actor* boss;
@@ -2056,7 +2128,7 @@ RECOMP_PATCH void func_809EC568(Boss04* this, PlayState* play) {
             if (this->unk_704 == 70) {
                 this->unk_2C8 = 300;
                 this->unk_2D0 = 0.0f;
-                
+
                 D_809EE4D0 = 1;
                 this->unk_2E2 = 60;
                 this->unk_2E0 = 93;

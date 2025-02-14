@@ -28,6 +28,7 @@ if (WIN32)
 endif()
 
 set(RT64_STATIC TRUE)
+set(RT64_SDL_WINDOW_VULKAN TRUE)
 add_subdirectory(${CMAKE_SOURCE_DIR}/lib/rt64 ${CMAKE_BINARY_DIR}/rt64)
 
 # set(BUILD_SHARED_LIBS_SAVED "${BUILD_SHARED_LIBS}")
@@ -57,6 +58,7 @@ target_include_directories(RecompiledFuncs PRIVATE
     ${CMAKE_SOURCE_DIR}/include
     ${CMAKE_SOURCE_DIR}/lib/N64ModernRuntime/ultramodern/include
     ${CMAKE_SOURCE_DIR}/lib/N64ModernRuntime/librecomp/include
+    ${CMAKE_SOURCE_DIR}/lib/N64ModernRuntime/N64Recomp/include
 )
 
 file(GLOB FUNC_C_SOURCES ${CMAKE_SOURCE_DIR}/RecompiledFuncs/*.c)
@@ -78,6 +80,7 @@ target_include_directories(PatchesLib PRIVATE
     ${CMAKE_SOURCE_DIR}/include
     ${CMAKE_SOURCE_DIR}/lib/N64ModernRuntime/ultramodern/include
     ${CMAKE_SOURCE_DIR}/lib/N64ModernRuntime/librecomp/include
+    ${CMAKE_SOURCE_DIR}/lib/N64ModernRuntime/N64Recomp/include
 )
 
 target_sources(PatchesLib PRIVATE
@@ -96,12 +99,8 @@ if(NOT DEFINED PATCHES_LD)
     set(PATCHES_LD ld.lld)
 endif()
 
-if(NOT DEFINED PATCHES_OBJCOPY)
-    set(PATCHES_OBJCOPY llvm-objcopy)
-endif()
-
 add_custom_target(PatchesBin
-    COMMAND ${CMAKE_COMMAND} -E env CC=${PATCHES_C_COMPILER} LD=${PATCHES_LD} OBJCOPY=${PATCHES_OBJCOPY} make
+    COMMAND ${CMAKE_COMMAND} -E env CC=${PATCHES_C_COMPILER} LD=${PATCHES_LD} make
     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/patches
     BYPRODUCTS ${CMAKE_SOURCE_DIR}/patches/patches.elf
 )
@@ -138,16 +137,6 @@ add_custom_target(DownloadGameControllerDB
 add_executable(Zelda64Recompiled)
 add_dependencies(Zelda64Recompiled DownloadGameControllerDB)
 
-# Generate mm_shader_cache.c from the MM shader cache if it exists
-if (EXISTS ${CMAKE_SOURCE_DIR}/shadercache/mm_shader_cache.bin)
-    set(HAS_MM_SHADER_CACHE TRUE)
-    target_compile_definitions(Zelda64Recompiled PRIVATE HAS_MM_SHADER_CACHE)
-    add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/mm_shader_cache.c ${CMAKE_CURRENT_BINARY_DIR}/mm_shader_cache.h
-        COMMAND file_to_c ${CMAKE_SOURCE_DIR}/shadercache/mm_shader_cache.bin mm_shader_cache_bytes ${CMAKE_CURRENT_BINARY_DIR}/mm_shader_cache.c ${CMAKE_CURRENT_BINARY_DIR}/mm_shader_cache.h
-        DEPENDS ${CMAKE_SOURCE_DIR}/shadercache/mm_shader_cache.bin
-    )
-endif()
-
 set (SOURCES
     ${CMAKE_SOURCE_DIR}/src/main/main.cpp
     ${CMAKE_SOURCE_DIR}/src/main/register_overlays.cpp
@@ -161,6 +150,7 @@ set (SOURCES
     ${CMAKE_SOURCE_DIR}/src/game/debug.cpp
     ${CMAKE_SOURCE_DIR}/src/game/quicksaving.cpp
     ${CMAKE_SOURCE_DIR}/src/game/recomp_api.cpp
+    ${CMAKE_SOURCE_DIR}/src/game/rom_decompression.cpp
 
     ${CMAKE_SOURCE_DIR}/src/ui/ui_renderer.cpp
     ${CMAKE_SOURCE_DIR}/src/ui/ui_launcher.cpp
@@ -174,12 +164,9 @@ set (SOURCES
     ${CMAKE_SOURCE_DIR}/lib/RmlUi/Backends/RmlUi_Platform_SDL.cpp
 )
 
-if (HAS_MM_SHADER_CACHE)
-    list(APPEND SOURCES ${CMAKE_CURRENT_BINARY_DIR}/mm_shader_cache.c)
-endif()
-
 target_include_directories(Zelda64Recompiled PRIVATE
     ${CMAKE_SOURCE_DIR}/include
+    ${CMAKE_SOURCE_DIR}/lib/N64ModernRuntime/N64Recomp/include
     ${CMAKE_SOURCE_DIR}/lib/concurrentqueue
     ${CMAKE_SOURCE_DIR}/lib/GamepadMotionHelpers
     ${CMAKE_SOURCE_DIR}/lib/RmlUi/Include
@@ -190,7 +177,6 @@ target_include_directories(Zelda64Recompiled PRIVATE
     ${CMAKE_SOURCE_DIR}/lib/rt64/src
     ${CMAKE_SOURCE_DIR}/lib/rt64/src/rhi
     ${CMAKE_SOURCE_DIR}/lib/rt64/src/render
-    ${CMAKE_SOURCE_DIR}/lib/sse2neon
     ${CMAKE_SOURCE_DIR}/lib/freetype-windows-binaries/include
     ${CMAKE_SOURCE_DIR}/lib/rt64/src/contrib/nativefiledialog-extended/src/include
     ${CMAKE_BINARY_DIR}/shaders
@@ -208,6 +194,11 @@ else()
         -fno-strict-aliasing
         -fms-extensions
     )
+endif()
+
+if (MSVC)
+    # Disable identical code folding, since this breaks mod function patching as multiple functions can get merged into one.
+    target_link_options(Zelda64Recompiled PRIVATE /OPT:NOICF)
 endif()
 
 if (WIN32)
@@ -255,6 +246,8 @@ endif()
 if (CMAKE_SYSTEM_NAME MATCHES "Linux")
     find_package(SDL2 REQUIRED)
     find_package(X11 REQUIRED)
+
+    add_compile_definitions("RT64_SDL_WINDOW_VULKAN")
 
     # Generate icon_bytes.c from the app icon PNG.
     add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/icon_bytes.c ${CMAKE_CURRENT_BINARY_DIR}/icon_bytes.h

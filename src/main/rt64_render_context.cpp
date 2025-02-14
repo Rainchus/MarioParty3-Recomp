@@ -1,5 +1,6 @@
 #include <memory>
 #include <cstring>
+#include <variant>
 
 #define HLSL_CPU
 #include "hle/rt64_application.h"
@@ -10,6 +11,13 @@
 
 #include "zelda_render.h"
 #include "recomp_ui.h"
+#include "concurrentqueue.h"
+
+// Helper class for variant visiting.
+template<class... Ts>
+struct overloaded : Ts... { using Ts::operator()...; };
+template<class... Ts>
+overloaded(Ts...) -> overloaded<Ts...>;
 
 static RT64::UserConfiguration::Antialiasing device_max_msaa = RT64::UserConfiguration::Antialiasing::None;
 static bool sample_positions_supported = false;
@@ -17,6 +25,18 @@ static bool high_precision_fb_enabled = false;
 
 static uint8_t DMEM[0x1000];
 static uint8_t IMEM[0x1000];
+
+struct TexturePackEnableAction {
+    std::filesystem::path path;
+};
+
+struct TexturePackDisableAction {
+    std::filesystem::path path;
+};
+
+using TexturePackAction = std::variant<TexturePackEnableAction, TexturePackDisableAction>;
+
+static moodycamel::ConcurrentQueue<TexturePackAction> texture_pack_action_queue;
 
 unsigned int MI_INTR_REG = 0;
 
@@ -180,11 +200,8 @@ zelda64::renderer::RT64Context::RT64Context(uint8_t* rdram, ultramodern::rendere
     RT64::Application::Core appCore{};
 #if defined(_WIN32)
     appCore.window = window_handle.window;
-#elif defined(__ANDROID__)
-    assert(false && "Unimplemented");
-#elif defined(__linux__)
-    appCore.window.display = window_handle.display;
-    appCore.window.window = window_handle.window;
+#elif defined(__linux__) || defined(__ANDROID__)
+    appCore.window = window_handle;
 #elif defined(__APPLE__)
     appCore.window.window = window_handle.window;
     appCore.window.view = window_handle.view;
@@ -286,6 +303,32 @@ zelda64::renderer::RT64Context::RT64Context(uint8_t* rdram, ultramodern::rendere
 zelda64::renderer::RT64Context::~RT64Context() = default;
 
 void zelda64::renderer::RT64Context::send_dl(const OSTask* task) {
+    bool packs_disabled = false;
+    TexturePackAction cur_action;
+    while (texture_pack_action_queue.try_dequeue(cur_action)) {
+        std::visit(overloaded{
+            [&](TexturePackDisableAction& to_disable) {
+                enabled_texture_packs.erase(to_disable.path);
+                packs_disabled = true;
+            },
+            [&](TexturePackEnableAction& to_enable) {
+                enabled_texture_packs.insert(to_enable.path);
+                // Load the pack now if no packs have been disabled.
+                if (!packs_disabled) {
+                    app->textureCache->loadReplacementDirectory(to_enable.path);
+                }
+            }
+        }, cur_action);
+    }
+
+    // If any packs were disabled, unload all packs and load all the active ones.
+    if (packs_disabled) {
+        app->textureCache->clearReplacementDirectories();
+        for (const std::filesystem::path& cur_pack_path : enabled_texture_packs) {
+            app->textureCache->loadReplacementDirectory(cur_pack_path);
+        }
+    }
+
     app->state->rsp->reset();
     app->interpreter->loadUCodeGBI(task->t.ucode & 0x3FFFFFF, task->t.ucode_data & 0x3FFFFFF, true);
     app->processDisplayLists(app->core.RDRAM, task->t.data_ptr & 0x3FFFFFF, 0, true);
@@ -351,16 +394,6 @@ float zelda64::renderer::RT64Context::get_resolution_scale() const {
     }
 }
 
-void zelda64::renderer::RT64Context::load_shader_cache(std::span<const char> cache_binary) {
-    // TODO figure out how to avoid a copy here.
-    std::istringstream cache_stream{std::string{cache_binary.data(), cache_binary.size()}};
-
-    if (!app->rasterShaderCache->loadOfflineList(cache_stream)) {
-       printf("Failed to preload shader cache!\n");
-       assert(false);
-    }
-}
-
 RT64::UserConfiguration::Antialiasing zelda64::renderer::RT64MaxMSAA() {
     return device_max_msaa;
 }
@@ -375,4 +408,12 @@ bool zelda64::renderer::RT64SamplePositionsSupported() {
 
 bool zelda64::renderer::RT64HighPrecisionFBEnabled() {
     return high_precision_fb_enabled;
+}
+
+void zelda64::renderer::enable_texture_pack(const recomp::mods::ModHandle& mod) {
+    texture_pack_action_queue.enqueue(TexturePackEnableAction{mod.manifest.mod_root_path});
+}
+
+void zelda64::renderer::disable_texture_pack(const recomp::mods::ModHandle& mod) {
+    texture_pack_action_queue.enqueue(TexturePackDisableAction{mod.manifest.mod_root_path});
 }
