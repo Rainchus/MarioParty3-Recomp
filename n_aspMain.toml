@@ -1,0 +1,11 @@
+text_offset = 0x2146010
+text_size = 0xC30
+text_address = 0x04001080
+rom_file_path = "donkeykong64.decompressed.us.z64"
+output_file_path = "rsp/n_aspMain.cpp"
+output_function_name = "n_aspMain"
+
+extra_indirect_branch_targets = [
+	0x10E8, 0x138C, 0x1190, 0x1A28, 0x11BC, 0x17C0, 0x11FC, 0x1C58,
+	0x1C58, 0x126C, 0x1338, 0x123C, 0x1C58, 0x12C4, 0x12B0, 0x1374
+]

@@ -2,7 +2,7 @@
 #include <mutex>
 
 #include "ultramodern/ultramodern.hpp"
-#include "librecomp/recomp.h"
+#include "recomp.h"
 #include "recomp_input.h"
 #include "zelda_config.h"
 #include "recomp_ui.h"
@@ -31,7 +31,7 @@ static struct {
     std::mutex cur_controllers_mutex;
     std::vector<SDL_GameController*> cur_controllers{};
     std::unordered_map<SDL_JoystickID, ControllerState> controller_states;
-    
+
     std::array<float, 2> rotation_delta{};
     std::array<float, 2> mouse_delta{};
     std::mutex pending_input_mutex;
@@ -93,63 +93,65 @@ bool should_override_keystate(SDL_Scancode key, SDL_Keymod mod) {
         }
     }
 
-    return false;        
+    return false;
 }
 
 bool sdl_event_filter(void* userdata, SDL_Event* event) {
     switch (event->type) {
     case SDL_EventType::SDL_KEYDOWN:
-        {
-            SDL_KeyboardEvent* keyevent = &event->key;
+    {
+        SDL_KeyboardEvent* keyevent = &event->key;
 
-            // Skip repeated events when not in the menu
-            if (recompui::get_current_menu() == recompui::Menu::None &&
-                event->key.repeat) {
-                break;
-            }
+        // Skip repeated events when not in the menu
+        if (recompui::get_current_menu() == recompui::Menu::None &&
+            event->key.repeat) {
+            break;
+        }
 
-            if ((keyevent->keysym.scancode == SDL_Scancode::SDL_SCANCODE_RETURN && (keyevent->keysym.mod & SDL_Keymod::KMOD_ALT)) ||
-                keyevent->keysym.scancode == SDL_Scancode::SDL_SCANCODE_F11
+        if ((keyevent->keysym.scancode == SDL_Scancode::SDL_SCANCODE_RETURN && (keyevent->keysym.mod & SDL_Keymod::KMOD_ALT)) ||
+            keyevent->keysym.scancode == SDL_Scancode::SDL_SCANCODE_F11
             ) {
-                recompui::toggle_fullscreen();
+            recompui::toggle_fullscreen();
+        }
+        if (scanning_device != recomp::InputDevice::COUNT) {
+            if (keyevent->keysym.scancode == SDL_Scancode::SDL_SCANCODE_ESCAPE) {
+                recomp::cancel_scanning_input();
             }
-            if (scanning_device != recomp::InputDevice::COUNT) {
-                if (keyevent->keysym.scancode == SDL_Scancode::SDL_SCANCODE_ESCAPE) {
-                    recomp::cancel_scanning_input();
-                } else if (scanning_device == recomp::InputDevice::Keyboard) {
-                    set_scanned_input({(uint32_t)InputType::Keyboard, keyevent->keysym.scancode});
-                }
-            } else {
-                if (!should_override_keystate(keyevent->keysym.scancode, static_cast<SDL_Keymod>(keyevent->keysym.mod))) {
-                    queue_if_enabled(event);
-                }
+            else if (scanning_device == recomp::InputDevice::Keyboard) {
+                set_scanned_input({ (uint32_t)InputType::Keyboard, keyevent->keysym.scancode });
             }
         }
-        break;
+        else {
+            if (!should_override_keystate(keyevent->keysym.scancode, static_cast<SDL_Keymod>(keyevent->keysym.mod))) {
+                queue_if_enabled(event);
+            }
+        }
+    }
+    break;
     case SDL_EventType::SDL_CONTROLLERDEVICEADDED:
-        {
-            SDL_ControllerDeviceEvent* controller_event = &event->cdevice;
-            SDL_GameController* controller = SDL_GameControllerOpen(controller_event->which);
-            printf("Controller added: %d\n", controller_event->which);
-            if (controller != nullptr) {
-                printf("  Instance ID: %d\n", SDL_JoystickInstanceID(SDL_GameControllerGetJoystick(controller)));
-                ControllerState& state = InputState.controller_states[SDL_JoystickInstanceID(SDL_GameControllerGetJoystick(controller))];
-                state.controller = controller;
+    {
+        SDL_ControllerDeviceEvent* controller_event = &event->cdevice;
+        SDL_GameController* controller = SDL_GameControllerOpen(controller_event->which);
+        printf("Controller added: %d\n", controller_event->which);
+        if (controller != nullptr) {
+            printf("  Instance ID: %d\n", SDL_JoystickInstanceID(SDL_GameControllerGetJoystick(controller)));
+            ControllerState& state = InputState.controller_states[SDL_JoystickInstanceID(SDL_GameControllerGetJoystick(controller))];
+            state.controller = controller;
 
-                if (SDL_GameControllerHasSensor(controller, SDL_SensorType::SDL_SENSOR_GYRO) && SDL_GameControllerHasSensor(controller, SDL_SensorType::SDL_SENSOR_ACCEL)) {
-                    SDL_GameControllerSetSensorEnabled(controller, SDL_SensorType::SDL_SENSOR_GYRO, SDL_TRUE);
-                    SDL_GameControllerSetSensorEnabled(controller, SDL_SensorType::SDL_SENSOR_ACCEL, SDL_TRUE);
-                }
+            if (SDL_GameControllerHasSensor(controller, SDL_SensorType::SDL_SENSOR_GYRO) && SDL_GameControllerHasSensor(controller, SDL_SensorType::SDL_SENSOR_ACCEL)) {
+                SDL_GameControllerSetSensorEnabled(controller, SDL_SensorType::SDL_SENSOR_GYRO, SDL_TRUE);
+                SDL_GameControllerSetSensorEnabled(controller, SDL_SensorType::SDL_SENSOR_ACCEL, SDL_TRUE);
             }
         }
-        break;
+    }
+    break;
     case SDL_EventType::SDL_CONTROLLERDEVICEREMOVED:
-        {
-            SDL_ControllerDeviceEvent* controller_event = &event->cdevice;
-            printf("Controller removed: %d\n", controller_event->which);
-            InputState.controller_states.erase(controller_event->which);
-        }
-        break;
+    {
+        SDL_ControllerDeviceEvent* controller_event = &event->cdevice;
+        printf("Controller removed: %d\n", controller_event->which);
+        InputState.controller_states.erase(controller_event->which);
+    }
+    break;
     case SDL_EventType::SDL_QUIT: {
         if (!ultramodern::is_game_started()) {
             ultramodern::quit();
@@ -165,12 +167,12 @@ bool sdl_event_filter(void* userdata, SDL_Event* event) {
         break;
     }
     case SDL_EventType::SDL_MOUSEWHEEL:
-        {
-            SDL_MouseWheelEvent* wheel_event = &event->wheel;    
-            InputState.mouse_wheel_pos.fetch_add(wheel_event->y * (wheel_event->direction == SDL_MOUSEWHEEL_FLIPPED ? -1 : 1));
-        }
-        queue_if_enabled(event);
-        break;
+    {
+        SDL_MouseWheelEvent* wheel_event = &event->wheel;
+        InputState.mouse_wheel_pos.fetch_add(wheel_event->y * (wheel_event->direction == SDL_MOUSEWHEEL_FLIPPED ? -1 : 1));
+    }
+    queue_if_enabled(event);
+    break;
     case SDL_EventType::SDL_CONTROLLERBUTTONDOWN:
         if (scanning_device != recomp::InputDevice::COUNT) {
             auto menuToggleBinding0 = recomp::get_input_binding(recomp::GameInput::TOGGLE_MENU, 0, recomp::InputDevice::Controller);
@@ -179,22 +181,24 @@ bool sdl_event_filter(void* userdata, SDL_Event* event) {
             if ((menuToggleBinding0.input_type != 0 && event->cbutton.button == menuToggleBinding0.input_id) ||
                 (menuToggleBinding1.input_type != 0 && event->cbutton.button == menuToggleBinding1.input_id)) {
                 recomp::cancel_scanning_input();
-            } else if (scanning_device == recomp::InputDevice::Controller) {
+            }
+            else if (scanning_device == recomp::InputDevice::Controller) {
                 SDL_ControllerButtonEvent* button_event = &event->cbutton;
                 auto scanned_input_index = recomp::get_scanned_input_index();
                 if ((scanned_input_index == static_cast<int>(recomp::GameInput::TOGGLE_MENU) ||
-                     scanned_input_index == static_cast<int>(recomp::GameInput::ACCEPT_MENU) ||
-                     scanned_input_index == static_cast<int>(recomp::GameInput::APPLY_MENU)) && (
-                     button_event->button == SDL_GameControllerButton::SDL_CONTROLLER_BUTTON_DPAD_UP ||
-                     button_event->button == SDL_GameControllerButton::SDL_CONTROLLER_BUTTON_DPAD_DOWN ||
-                     button_event->button == SDL_GameControllerButton::SDL_CONTROLLER_BUTTON_DPAD_LEFT ||
-                     button_event->button == SDL_GameControllerButton::SDL_CONTROLLER_BUTTON_DPAD_RIGHT)) {
+                    scanned_input_index == static_cast<int>(recomp::GameInput::ACCEPT_MENU) ||
+                    scanned_input_index == static_cast<int>(recomp::GameInput::APPLY_MENU)) && (
+                        button_event->button == SDL_GameControllerButton::SDL_CONTROLLER_BUTTON_DPAD_UP ||
+                        button_event->button == SDL_GameControllerButton::SDL_CONTROLLER_BUTTON_DPAD_DOWN ||
+                        button_event->button == SDL_GameControllerButton::SDL_CONTROLLER_BUTTON_DPAD_LEFT ||
+                        button_event->button == SDL_GameControllerButton::SDL_CONTROLLER_BUTTON_DPAD_RIGHT)) {
                     break;
                 }
 
-                set_scanned_input({(uint32_t)InputType::ControllerDigital, button_event->button});
+                set_scanned_input({ (uint32_t)InputType::ControllerDigital, button_event->button });
             }
-        } else {
+        }
+        else {
             queue_if_enabled(event);
         }
         break;
@@ -208,7 +212,7 @@ bool sdl_event_filter(void* userdata, SDL_Event* event) {
             }
 
             SDL_ControllerAxisEvent* axis_event = &event->caxis;
-            float axis_value = axis_event->value * (1/32768.0f);
+            float axis_value = axis_event->value * (1 / 32768.0f);
             if (axis_value > axis_threshold) {
                 SDL_Event set_stick_return_event;
                 set_stick_return_event.type = SDL_USEREVENT;
@@ -216,8 +220,8 @@ bool sdl_event_filter(void* userdata, SDL_Event* event) {
                 set_stick_return_event.user.data1 = nullptr;
                 set_stick_return_event.user.data2 = nullptr;
                 recompui::queue_event(set_stick_return_event);
-                
-                set_scanned_input({(uint32_t)InputType::ControllerAnalog, axis_event->axis + 1});
+
+                set_scanned_input({ (uint32_t)InputType::ControllerAnalog, axis_event->axis + 1 });
             }
             else if (axis_value < -axis_threshold) {
                 SDL_Event set_stick_return_event;
@@ -227,9 +231,10 @@ bool sdl_event_filter(void* userdata, SDL_Event* event) {
                 set_stick_return_event.user.data2 = nullptr;
                 recompui::queue_event(set_stick_return_event);
 
-                set_scanned_input({(uint32_t)InputType::ControllerAnalog, -axis_event->axis - 1});
+                set_scanned_input({ (uint32_t)InputType::ControllerAnalog, -axis_event->axis - 1 });
             }
-        } else {
+        }
+        else {
             queue_if_enabled(event);
         }
         break;
@@ -464,17 +469,17 @@ void recomp::poll_inputs() {
     // Read the deltas while resetting them to zero.
     {
         std::lock_guard lock{ InputState.pending_input_mutex };
-        
+
         InputState.rotation_delta = InputState.pending_rotation_delta;
         InputState.pending_rotation_delta = { 0.0f, 0.0f };
 
         InputState.mouse_delta = InputState.pending_mouse_delta;
         InputState.pending_mouse_delta = { 0.0f, 0.0f };
     }
-    
+
     // Quicksaving is disabled for now and will likely have more limited functionality
     // when restored, rather than allowing saving and loading at any point in time.
-    #if 0
+#if 0
     if (InputState.keys) {
         static bool save_was_held = false;
         static bool load_was_held = false;
@@ -488,7 +493,7 @@ void recomp::poll_inputs() {
         }
         save_was_held = save_is_held;
     }
-    #endif
+#endif
 }
 
 void recomp::set_rumble(int controller_num, bool on) {
@@ -499,14 +504,14 @@ void recomp::set_rumble(int controller_num, bool on) {
 
 ultramodern::input::connected_device_info_t recomp::get_connected_device_info(int controller_num) {
     switch (controller_num) {
-        case 0:
-            return ultramodern::input::connected_device_info_t {
-                .connected_device = ultramodern::input::Device::Controller,
-                .connected_pak = ultramodern::input::Pak::RumblePak,
-            };
+    case 0:
+        return ultramodern::input::connected_device_info_t{
+            .connected_device = ultramodern::input::Device::Controller,
+            .connected_pak = ultramodern::input::Pak::RumblePak,
+        };
     }
 
-    return ultramodern::input::connected_device_info_t {
+    return ultramodern::input::connected_device_info_t{
         .connected_device = ultramodern::input::Device::None,
         .connected_pak = ultramodern::input::Pak::None,
     };
@@ -523,7 +528,8 @@ void recomp::update_rumble() {
     if (InputState.rumble_active) {
         InputState.cur_rumble += 0.17f;
         if (InputState.cur_rumble > 1) InputState.cur_rumble = 1;
-    } else {
+    }
+    else {
         InputState.cur_rumble *= 0.92f;
         InputState.cur_rumble -= 0.01f;
         if (InputState.cur_rumble < 0) InputState.cur_rumble = 0;
@@ -567,7 +573,7 @@ float controller_axis_state(int32_t input_id, bool allow_suppression) {
         {
             std::lock_guard lock{ InputState.cur_controllers_mutex };
             for (const auto& controller : InputState.cur_controllers) {
-                float cur_val = SDL_GameControllerGetAxis(controller, axis) * (1/32768.0f);
+                float cur_val = SDL_GameControllerGetAxis(controller, axis) * (1 / 32768.0f);
                 if (negative_range) {
                     cur_val = -cur_val;
                 }
@@ -664,13 +670,13 @@ void recomp::get_mouse_deltas(float* x, float* y) {
 void recomp::apply_joystick_deadzone(float x_in, float y_in, float* x_out, float* y_out) {
     float joystick_deadzone = (float)recomp::get_joystick_deadzone() / 100.0f;
 
-    if(fabsf(x_in) < joystick_deadzone) {
+    if (fabsf(x_in) < joystick_deadzone) {
         x_in = 0.0f;
     }
     else {
-        if(x_in > 0.0f) {
+        if (x_in > 0.0f) {
             x_in -= joystick_deadzone;
-        } 
+        }
         else {
             x_in += joystick_deadzone;
         }
@@ -678,13 +684,13 @@ void recomp::apply_joystick_deadzone(float x_in, float y_in, float* x_out, float
         x_in /= (1.0f - joystick_deadzone);
     }
 
-    if(fabsf(y_in) < joystick_deadzone) {
+    if (fabsf(y_in) < joystick_deadzone) {
         y_in = 0.0f;
     }
     else {
-        if(y_in > 0.0f) {
+        if (y_in > 0.0f) {
             y_in -= joystick_deadzone;
-        } 
+        }
         else {
             y_in += joystick_deadzone;
         }
@@ -752,16 +758,16 @@ std::string controller_button_to_string(SDL_GameControllerButton button) {
         return PF_DPAD_LEFT;
     case SDL_GameControllerButton::SDL_CONTROLLER_BUTTON_DPAD_RIGHT:
         return PF_DPAD_RIGHT;
-    // case SDL_GameControllerButton::SDL_CONTROLLER_BUTTON_MISC1:
-    //     return "";
-    // case SDL_GameControllerButton::SDL_CONTROLLER_BUTTON_PADDLE1:
-    //     return "";
-    // case SDL_GameControllerButton::SDL_CONTROLLER_BUTTON_PADDLE2:
-    //     return "";
-    // case SDL_GameControllerButton::SDL_CONTROLLER_BUTTON_PADDLE3:
-    //     return "";
-    // case SDL_GameControllerButton::SDL_CONTROLLER_BUTTON_PADDLE4:
-    //     return "";
+        // case SDL_GameControllerButton::SDL_CONTROLLER_BUTTON_MISC1:
+        //     return "";
+        // case SDL_GameControllerButton::SDL_CONTROLLER_BUTTON_PADDLE1:
+        //     return "";
+        // case SDL_GameControllerButton::SDL_CONTROLLER_BUTTON_PADDLE2:
+        //     return "";
+        // case SDL_GameControllerButton::SDL_CONTROLLER_BUTTON_PADDLE3:
+        //     return "";
+        // case SDL_GameControllerButton::SDL_CONTROLLER_BUTTON_PADDLE4:
+        //     return "";
     case SDL_GameControllerButton::SDL_CONTROLLER_BUTTON_TOUCHPAD:
         return PF_SONY_TOUCHPAD;
     default:
@@ -769,7 +775,7 @@ std::string controller_button_to_string(SDL_GameControllerButton button) {
     }
 }
 
-std::unordered_map<SDL_Scancode, std::string> scancode_codepoints {
+std::unordered_map<SDL_Scancode, std::string> scancode_codepoints{
     {SDL_SCANCODE_LEFT, PF_KEYBOARD_LEFT},
     // NOTE: UP and RIGHT are swapped with promptfont.
     {SDL_SCANCODE_UP, PF_KEYBOARD_RIGHT},
@@ -873,15 +879,15 @@ std::string controller_axis_to_string(int axis) {
 
 std::string recomp::InputField::to_string() const {
     switch ((InputType)input_type) {
-        case InputType::None:
-            return "";
-        case InputType::ControllerDigital:
-            return controller_button_to_string((SDL_GameControllerButton)input_id);
-        case InputType::ControllerAnalog:
-            return controller_axis_to_string(input_id);
-        case InputType::Keyboard:
-            return keyboard_input_to_string((SDL_Scancode)input_id);
-        default:
-            return std::to_string(input_type) + "," + std::to_string(input_id);
+    case InputType::None:
+        return "";
+    case InputType::ControllerDigital:
+        return controller_button_to_string((SDL_GameControllerButton)input_id);
+    case InputType::ControllerAnalog:
+        return controller_axis_to_string(input_id);
+    case InputType::Keyboard:
+        return keyboard_input_to_string((SDL_Scancode)input_id);
+    default:
+        return std::to_string(input_type) + "," + std::to_string(input_id);
     }
 }

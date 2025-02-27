@@ -307,12 +307,12 @@ void reset_audio(uint32_t output_freq) {
 }
 
 //extern RspUcodeFunc njpgdspMain;
-extern RspUcodeFunc aspMain;
+extern RspUcodeFunc n_aspMain;
 
 RspUcodeFunc* get_rsp_microcode(const OSTask* task) {
     switch (task->t.type) {
     case M_AUDTASK:
-        return aspMain;
+        return n_aspMain;
 
     case M_NJPEGTASK:
         //return njpgdspMain;
@@ -323,19 +323,43 @@ RspUcodeFunc* get_rsp_microcode(const OSTask* task) {
     }
 }
 
+void ipl3Boot(uint8_t* rdram, recomp_context* context) {
+    MEM_W(0, 0xFFFFFFFF802FE1C0) = 0xAD170014; //write to 0x802FE1C0
+    MEM_W(0, 0xFFFFFFFF802FE1C4) = 0x3C09A600; //write to 0x802FE1C4
+
+    //recomp::do_rom_read(rdram, (int32_t)0x80000004, 0x10000554, 0x334);
+    recomp::do_rom_read(rdram, (int32_t)0x80000008, 0x10000558, 0x330);
+
+    // Initialize variables normally set by IPL3
+    constexpr int32_t osTvType = 0x80000300;
+    //constexpr int32_t osRomType = 0x80000304;
+    constexpr int32_t osRomBase = 0x80000308;
+    constexpr int32_t osResetType = 0x8000030c;
+    constexpr int32_t osCicId = 0x80000310;
+    //constexpr int32_t osVersion = 0x80000314;
+    constexpr int32_t osMemSize = 0x80000318;
+    //constexpr int32_t osAppNMIBuffer = 0x8000031c;
+    MEM_W(osTvType, 0) = 1; // NTSC
+    MEM_W(osRomBase, 0) = 0xB0000000u; // standard rom base
+    MEM_W(osResetType, 0) = 0; // cold reset
+    MEM_W(osMemSize, 0) = 8 * 1024 * 1024; // 8MB
+    MEM_W(osCicId, 0) = 6105; // set CIC to 6105
+}
+
 extern "C" void recomp_entrypoint(uint8_t * rdram, recomp_context * ctx);
 gpr get_entrypoint_address();
 
 // array of supported GameEntry objects
 std::vector<recomp::GameEntry> supported_games = {
     {
-        .rom_hash = 0x0ff1b3a34ee3fb82ULL,
-        .internal_name = "Chameleon Twist",
-        .game_id = u8"ChameleonTwistJP",
-        .save_type = recomp::SaveType::Eep4k,
+        .rom_hash = 0x4d876060f09b3fc5ULL,
+        .internal_name = "DONKEY KONG 64",
+        .game_id = u8"DK64",
+        .save_type = recomp::SaveType::Eep16k,
         .is_enabled = true,
         .entrypoint_address = get_entrypoint_address(),
         .entrypoint = recomp_entrypoint,
+        .on_init_callback = ipl3Boot,
     },
 };
 
@@ -638,7 +662,7 @@ int main(int argc, char** argv) {
     };
 
     ultramodern::threads::callbacks_t threads_callbacks{
-        .get_game_thread_name = zelda64::get_game_thread_name,
+        // .get_game_thread_name = zelda64::get_game_thread_name,
     };
 
     // Register the texture pack content type with rt64.json as its content file.
