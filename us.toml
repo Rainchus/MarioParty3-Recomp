@@ -214,7 +214,17 @@ value = 0x00000000 #NOP osAiGetLength that is done without a function call
 [[patches.instruction]]
 func = "func_global_asm_80611730"
 vram = 0x8061176C
-value = 0x3C0F3400 #lui $t7, 0x5400 -> lui $t7, 0x3400
+value = 0x3C0F8000
+
+[[patches.instruction]]
+func = "func_global_asm_80611730"
+vram = 0x80611770
+value = 0x8DEF02E8
+
+[[patches.instruction]]
+func = "func_global_asm_80611730"
+vram = 0x80611774
+value = 0x00000000
 
 
 
