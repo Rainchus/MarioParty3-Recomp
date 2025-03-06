@@ -186,10 +186,10 @@ func = "func_dk64_boot_80000450"
 text = "ctx->r6 = MEM_W(ctx->r29, 0X28);boot_osPiRawStartDma(rdram, ctx);"
 before_vram = 0x8000048C #osPiRawStartDma call
 
-#[[patches.hook]]
-#func = "func_dk64_boot_80000450"
-#text = "load_dk64_overlay(ctx->r4, ctx->r6, ctx->r5 - ctx->r4);"
-#before_vram = 0x80000450
+[[patches.hook]]
+func = "func_dk64_boot_80000450"
+text = "load_dk64_overlay(ctx->r4, ctx->r6, ctx->r5 - ctx->r4);"
+before_vram = 0x80000450
 
 [[patches.hook]]
 func = "func_dk64_boot_800005A8"
@@ -198,6 +198,11 @@ int32_t ovl_ram = 0x805FB300;
 int32_t uncompressed_size = 0x1DE360;
 load_dk64_overlay(ovl_rom_start, ovl_ram, uncompressed_size);"""
 before_vram = 0x80000734
+
+[[patches.hook]]
+func = "func_global_asm_8060B140"
+text = "load_dk64_overlay(ctx->r4, 0, 0);"
+before_vram = 0x8060B140
 
 
 [[patches.hook]]
@@ -248,6 +253,13 @@ before_vram = 0x8000102C
 func = "func_global_asm_805FB5C4"
 vram = 0x805FB650
 value = 0x0C002F34 #jal osStopThread -> jal osDestoryThread
+
+#Temporary, important to actually fix this
+[[patches.instruction]]
+func = "func_global_asm_805FBFF4"
+vram = 0x805FC224
+value = 0x00000000 #jal osSendMesg -> nop
+
 
 
 [[patches.hook]]
