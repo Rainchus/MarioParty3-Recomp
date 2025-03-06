@@ -204,6 +204,11 @@ func = "func_global_asm_8060B140"
 text = "load_dk64_overlay(ctx->r4, 0, 0);"
 before_vram = 0x8060B140
 
+[[patches.instruction]]
+func = "func_global_asm_805FBFF4"
+vram = 0x805FC020
+value = 0x24140000
+
 
 [[patches.hook]]
 func = "func_global_asm_80601EE4"
@@ -248,6 +253,7 @@ func = "func_dk64_boot_8000102C"
 text = "load_overlays(ctx->r4, ctx->r6, ctx->r5);"
 before_vram = 0x8000102C
 
+
 #NMI related
 [[patches.instruction]]
 func = "func_global_asm_805FB5C4"
@@ -255,10 +261,10 @@ vram = 0x805FB650
 value = 0x0C002F34 #jal osStopThread -> jal osDestoryThread
 
 #Temporary, important to actually fix this
-[[patches.instruction]]
-func = "func_global_asm_805FBFF4"
-vram = 0x805FC224
-value = 0x00000000 #jal osSendMesg -> nop
+#[[patches.instruction]]
+#func = "func_global_asm_805FBFF4"
+#vram = 0x805FC224
+#value = 0x00000000 #jal osSendMesg -> nop
 
 
 
@@ -271,4 +277,24 @@ text = """static int threadStarted = 0;
 		threadStarted = 1;
 	}"""
 before_vram = 0x805FB560
+
+
+#patch frame skipping to be constant
+[[patches.instruction]]
+func = "func_global_asm_80600674"
+vram = 0x806008C8
+value = 0x00000000 #SW	A3, 0x4478 (AT) -> nop
+
+[[patches.instruction]]
+func = "func_global_asm_80600674"
+vram = 0x80600934
+value = 0x00000000 #SW	T8, 0x4478 (AT) -> nop
+
+[[patches.hook]]
+func = "func_global_asm_80600674"
+text = "    yield_self(rdram);"
+before_vram = 0x806008FC
+
+
+
 
