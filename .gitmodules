@@ -18,4 +18,4 @@
 	url = https://github.com/N64Recomp/N64ModernRuntime.git
 [submodule "lib/dk64_decomp"]
 	path = lib/dk64_decomp
-	url = https://gitlab.com/dk64_decomp/dk64
+	url = https://gitlab.com/dk64_decomp/dk64.git
