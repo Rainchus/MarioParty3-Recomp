@@ -149,20 +149,34 @@ ignored = [
 	"D_global_asm_8061ACA0",
 ]
 
-stubs = [
-    "func_global_asm_805FB5C4"
-]
+#stubs = [
+    #"func_global_asm_805FB5C4"
+#]
 
+#patch out __osSetSpStatus call
+[[patches.instruction]]
+func = "func_global_asm_805FB5C4"
+vram = 0x805FB710
+value = 0x00000000
 
+#yield for sound effects so the game doesn't infinite loop (this makes the game lag badly, dont use)
+#[[patches.hook]]
+#func = "func_global_asm_80735CF4"
+#text = "    yield_self(rdram);"
+#before_vram = 0x80735D7C
+
+#Patch an uncached read to a cached read
 [[patches.instruction]]
 func = "func_dk64_boot_800009D0"
 vram = 0x800009E0
 value = 0x3C04802F # lui $a0, 0xA02F -> lui $a0, 0x802F
 
+#Patch an uncached read to a cached read
 [[patches.instruction]]
 func = "func_dk64_boot_800009D0"
 vram = 0x800009FC
 value = 0x3C0F8030 # lui $t7, 0xA030 -> lui $t7, 0x8030
+
 
 #[[patches.instruction]]
 #func = "func_dk64_boot_800009D0"
@@ -204,10 +218,16 @@ func = "func_global_asm_8060B140"
 text = "load_dk64_overlay(ctx->r4, 0, 0);"
 before_vram = 0x8060B140
 
+#Temporary, makes game boot
 [[patches.instruction]]
 func = "func_global_asm_805FBFF4"
 vram = 0x805FC020
-value = 0x24140000
+value = 0x24140000 #ADDIU s4, r0, 1 -> ADDIU s4, r0, 0 (makes the game skip a osSendMesg call)
+
+#[[patches.hook]]
+#func = "func_global_asm_805FBFF4"
+#text = "    yield_self(rdram);"
+#before_vram = 0x805FC218
 
 
 [[patches.hook]]
@@ -221,6 +241,7 @@ func = "func_global_asm_80601EE4"
 vram = 0x80601F0C
 value = 0x00000000 #NOP osAiGetLength that is done without a function call
 
+#These next 3 patches patch out a very convoluted way of loading an uncached memory address
 [[patches.instruction]]
 func = "func_global_asm_80611730"
 vram = 0x8061176C
