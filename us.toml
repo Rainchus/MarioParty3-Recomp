@@ -5,6 +5,7 @@ entrypoint = 0x80000400
 # Paths are relative to the location of this config file.
 elf_path = "donkeykong64.us.elf"
 output_func_path = "RecompiledFuncs"
+
 manual_funcs = [
     { name = "func_global_asm_80612794", section = ".global_asm", vram = 0x80612794, size = 0x6C },
 ]

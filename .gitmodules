@@ -19,3 +19,6 @@
 [submodule "lib/dk64_decomp"]
 	path = lib/dk64_decomp
 	url = https://gitlab.com/dk64_decomp/dk64.git
+[submodule "Dk64Syms"]
+	path = Dk64Syms
+	url = https://github.com/Rainchus/Dk64Syms.git
