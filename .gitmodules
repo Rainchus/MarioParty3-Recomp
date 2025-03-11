@@ -16,9 +16,10 @@
 [submodule "lib/N64ModernRuntime"]
 	path = lib/N64ModernRuntime
 	url = https://github.com/N64Recomp/N64ModernRuntime.git
-[submodule "lib/dk64_decomp"]
-	path = lib/dk64_decomp
-	url = https://gitlab.com/Rainchus/dk64
 [submodule "Dk64Syms"]
 	path = Dk64Syms
 	url = https://github.com/Rainchus/Dk64Syms.git
+[submodule "lib/dk64_decomp"]
+	path = lib/dk64_decomp
+	url = https://gitlab.com/Rainchus/dk64
+	branch = recomp
