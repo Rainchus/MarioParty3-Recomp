@@ -46,10 +46,13 @@ void func_global_asm_806F4528(AutowalkFile *);
 void func_global_asm_8066B434(void *arg0, s32 arg1, s32 arg2);
 
 RECOMP_PATCH void func_global_asm_806F3760(s16 map) {
-    void *autowalkFile;
+    AutowalkFile *autowalkFile;
 
     autowalkFile = getPointerTableFile(TABLE_21_AUTOWALKS, map, 1, 0);
-    recomp_printf("autowalkFile loaded\n");
+
+    recomp_printf("Autowalk File Loaded\n");
+    recomp_printf("test count: %08X\n", autowalkFile->count);
+
     func_global_asm_806F4528(autowalkFile);
     if (autowalkFile) {
         func_global_asm_8066B434(autowalkFile, 0x4C, 0x56);

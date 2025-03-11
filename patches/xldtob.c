@@ -2,6 +2,19 @@
 #include "string.h"
 #include "xstdio.h"
 
+inline void *my_memcpy(void *dest, const void *src, size_t n) {
+    // Cast the void pointers to char pointers for byte-wise copying
+    char *d = (char *)dest;
+    const char *s = (const char *)src;
+
+    // Copy n bytes from src to dest
+    for (size_t i = 0; i < n; i++) {
+        d[i] = s[i];
+    }
+
+    return dest;  // Return the destination pointer
+}
+
 typedef	struct LDIV_T {
 	long quot;
 	long rem;
@@ -76,11 +89,7 @@ void _Ldtob(_Pft* px, char code) {
 
     err = _Ldunscale(&xexp, &px->v.ld);
     if (err > 0) {
-        const char *str = (err == 2) ? "NaN" : "Inf";
-        for (int i = 0; i < 3; i++) {
-            px->s[i] = str[i];
-        }
-        px->n1 = 3;
+        my_memcpy(px->s, err == 2 ? "NaN" : "Inf", px->n1 = 3);
         return;
     } else if (err == 0) {
         nsig = 0;
@@ -177,7 +186,6 @@ void _Ldtob(_Pft* px, char code) {
     _Genld(px, code, p, nsig, xexp);
 }
 
-
 short _Ldunscale(short* pex, ldouble* px) {
     unsigned short* ps = (unsigned short*)px;
     short xchar = (ps[_D0] & _DMASK) >> _DOFF;
@@ -203,8 +211,7 @@ void _Genld(_Pft* px, char code, unsigned char* p, short nsig, short xexp) {
     const unsigned char point = '.';
 
     if (nsig <= 0) {
-        nsig = 1;
-        p = (unsigned char *)"0"; // Ensure p is a pointer to a string
+        nsig = 1, p = "0";
     }
 
     if (code == 'f' || (code == 'g' || code == 'G') && xexp >= -4 && xexp < px->prec) {
@@ -237,28 +244,21 @@ void _Genld(_Pft* px, char code, unsigned char* p, short nsig, short xexp) {
                 nsig = px->prec;
             }
 
-            // Copying characters without using memcpy
-            for (short i = 0; i < nsig; i++) {
-                px->s[px->n1++] = p[i];
-            }
+            my_memcpy(&px->s[px->n1], p, px->n2 = nsig);
             px->nz2 = px->prec - nsig;
         } else if (nsig < xexp) {
-            // Copying characters without using memcpy
-            for (short i = 0; i < nsig; i++) {
-                px->s[px->n1++] = p[i];
-            }
+            my_memcpy(&px->s[px->n1], p, nsig);
+            px->n1 += nsig;
             px->nz1 = xexp - nsig;
             if (px->prec > 0 || (px->flags & 8)) {
-                px->s[px->n1++] = point;
+                px->s[px->n1] = point;
                 px->n2++;
             }
 
             px->nz2 = px->prec;
         } else {
-            // Copying characters without using memcpy
-            for (short i = 0; i < xexp; i++) {
-                px->s[px->n1++] = p[i];
-            }
+            my_memcpy(&px->s[px->n1], p, xexp);
+            px->n1 += xexp;
             nsig -= xexp;
 
             if (px->prec > 0 || (px->flags & 8)) {
@@ -269,10 +269,8 @@ void _Genld(_Pft* px, char code, unsigned char* p, short nsig, short xexp) {
                 nsig = px->prec;
             }
 
-            // Copying remaining characters without using memcpy
-            for (short i = 0; i < nsig; i++) {
-                px->s[px->n1++] = p[xexp + i];
-            }
+            my_memcpy(&px->s[px->n1], &p[xexp], nsig);
+            px->n1 += nsig;
             px->nz1 = px->prec - nsig;
         }
     } else {
@@ -299,10 +297,8 @@ void _Genld(_Pft* px, char code, unsigned char* p, short nsig, short xexp) {
                 nsig = px->prec;
             }
 
-            // Copying characters without using memcpy
-            for (short i = 0; i < nsig; i++) {
-                px->s[px->n1++] = p[i];
-            }
+            my_memcpy(&px->s[px->n1], p, nsig);
+            px->n1 += nsig;
             px->nz1 = px->prec - nsig;
         }
 
@@ -318,14 +314,11 @@ void _Genld(_Pft* px, char code, unsigned char* p, short nsig, short xexp) {
 
         if (xexp >= 100) {
             if (xexp >= 1000) {
-                *p++ = (xexp / 1000) + '0';
-                xexp %= 1000;
+                *p++ = (xexp / 1000) + '0', xexp %= 1000;
             }
-            *p++ = (xexp / 100) + '0';
-            xexp %= 100;
+            *p++ = (xexp / 100) + '0', xexp %= 100;
         }
-        *p++ = (xexp / 10) + '0';
-        xexp %= 10;
+        *p++ = (xexp / 10) + '0', xexp %= 10;
 
         *p++ = xexp + '0';
         px->n2 = (size_t)p - ((size_t)px->s + px->n1);
@@ -339,5 +332,4 @@ void _Genld(_Pft* px, char code, unsigned char* p, short nsig, short xexp) {
         }
     }
 }
-
 

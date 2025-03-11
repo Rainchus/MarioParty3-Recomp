@@ -32,6 +32,19 @@ lldiv_t lldiv(long long num, long long denom) {
 static char ldigs[] = "0123456789abcdef";
 static char udigs[] = "0123456789ABCDEF";
 
+inline void *my_memcpy(void *dest, const void *src, size_t n) {
+    // Cast the void pointers to char pointers for byte-wise copying
+    char *d = (char *)dest;
+    const char *s = (const char *)src;
+
+    // Copy n bytes from src to dest
+    for (size_t i = 0; i < n; i++) {
+        d[i] = s[i];
+    }
+
+    return dest;  // Return the destination pointer
+}
+
 void _Litob(_Pft *px, char code) {
     char buff[BUFF_LEN];
     const char *digs;
@@ -57,14 +70,13 @@ void _Litob(_Pft *px, char code) {
 
     while (px->v.ll > 0 && i > 0) {
         lldiv_t qr = lldiv(px->v.ll, base);
-
         px->v.ll = qr.quot;
         buff[--i] = digs[qr.rem];
     }
 
     px->n1 = BUFF_LEN - i;
 
-    // Copying characters without using memcpy
+    // Manually copy px->n1 bytes from buff + i to px->s (mimicking memcpy)
     for (int j = 0; j < px->n1; j++) {
         px->s[j] = buff[i + j];
     }
@@ -79,4 +91,3 @@ void _Litob(_Pft *px, char code) {
         }
     }
 }
-
