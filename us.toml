@@ -1,322 +1,40 @@
-# Config file for Donkey Kong 64 US Recompilation
+# Config file for Mario Party 3 US Recompilation.
 
 [input]
 entrypoint = 0x80000400
 # Paths are relative to the location of this config file.
-elf_path = "donkeykong64.us.elf"
+elf_path = "marioparty3.elf"
 output_func_path = "RecompiledFuncs"
 
-manual_funcs = [
-    { name = "func_global_asm_80612794", section = ".global_asm", vram = 0x80612794, size = 0x6C },
-]
-function_sizes = [
-    { name = "func_global_asm_80612790", size = 0x70 },
-    { name = "func_global_asm_80612794", size = 0x6C }
-]
-
 [patches]
-ignored = [
-    "D_global_asm_80611F0C",
-	"D_global_asm_8071FA80",
-	"D_global_asm_8071FB08",
-	"D_global_asm_8071FB34",
-	"D_global_asm_8071FB54",
-	"D_global_asm_8071FBA0",
-	"D_global_asm_8071FBC8",
-	"D_global_asm_8071FBF4",
-	"D_global_asm_8071FC0C",
-	"D_global_asm_8071FC40",
-	"D_global_asm_8071FC58",
-	"D_global_asm_8071FC8C",
-	"D_global_asm_8071FCC0",
-	"D_global_asm_8071FE08",
-	"D_global_asm_8071FE64",
-	"D_global_asm_8071FE88",
-	"D_global_asm_8071FEAC",
-	"D_global_asm_8071FED0",
-	"D_global_asm_8071FEF4",
-	"D_global_asm_8071FF18",
-	"D_global_asm_8071FF40",
-	"D_global_asm_8071FF58",
-	"D_global_asm_8071FFA0",
-	"D_global_asm_80720020",
-	"D_global_asm_80720054",
-	"D_global_asm_8072006C",
-	"D_global_asm_807200A0",
-	"D_global_asm_807200D4",
-	"D_global_asm_807200EC",
-	"D_global_asm_80720120",
-	"D_global_asm_8072014C",
-	"D_global_asm_807201A0",
-	"D_global_asm_807201D4",
-	"D_global_asm_80720268",
-	"D_global_asm_8072029C",
-	"D_global_asm_807202D0",
-	"D_global_asm_8072030C",
-	"D_global_asm_80720340",
-	"D_global_asm_8072038C",
-	"D_global_asm_807203B0",
-	"D_global_asm_807203D4",
-	"D_global_asm_807203F8",
-	"D_global_asm_8072041C",
-	"D_global_asm_80720440",
-	"D_global_asm_80720488",
-	"D_global_asm_807204BC",
-	"D_global_asm_80720508",
-	"D_global_asm_8072052C",
-	"D_global_asm_80720558",
-	"D_global_asm_8072057C",
-	"D_global_asm_807205A0",
-	"D_global_asm_807205C4",
-	"D_global_asm_807205E8",
-	"D_global_asm_8072060C",
-	"D_global_asm_80720630",
-	"D_global_asm_807206A8",
-	"D_global_asm_807206DC",
-	"D_global_asm_80720710",
-	"D_global_asm_8072073C",
-	"D_global_asm_80720768",
-	"D_global_asm_807207BC",
-	"D_global_asm_807207E0",
-	"D_global_asm_80720804",
-	"D_global_asm_80720854",
-	"D_global_asm_80720878",
-	"D_global_asm_80720890",
-	"D_global_asm_807208A8",
-	"D_global_asm_807208C0",
-	"D_global_asm_807208D8",
-	"D_global_asm_807209EC",
-	"D_global_asm_80720A10",
-	"D_global_asm_80720A34",
-	"D_global_asm_80720A58",
-	"D_global_asm_80720A7C",
-	"D_global_asm_80720B00",
-	"D_global_asm_80720B24",
-	"D_global_asm_80720B58",
-	"D_global_asm_80720BA0",
-	"D_global_asm_80720BC4",
-	"D_global_asm_80720BE8",
-	"D_global_asm_80720C34",
-	"D_global_asm_80720CD8",
-	"D_global_asm_80720D38",
-	"D_global_asm_80720D5C",
-	"D_global_asm_80720D80",
-	"D_global_asm_80720DE0",
-	"D_global_asm_80720E14",
-	"D_global_asm_80720E2C",
-	"D_global_asm_80720E44",
-	"D_global_asm_80720E5C",
-	"D_global_asm_80720E74",
-	"D_global_asm_80720E8C",
-	"D_global_asm_80720EA4",
-	"D_global_asm_80720EBC",
-	"D_global_asm_80720EE8",
-	"D_global_asm_80720F14",
-	"D_global_asm_80720F40",
-	"D_global_asm_80720F6C",
-	"D_global_asm_80720F98",
-	"D_global_asm_80720FBC",
-	"D_global_asm_80720FE0",
-	"D_global_asm_80721004",
-	"D_global_asm_80721028",
-	"D_global_asm_8072104C",
-	"D_global_asm_80721094",
-	"D_global_asm_807210EC",
-	"D_global_asm_80721158",
-	"D_global_asm_80721170",
-	"D_global_asm_807211D0",
-	"D_global_asm_80721200",
-	"D_global_asm_8072121C",
-	"D_global_asm_80721238",
-	"D_global_asm_80721250",
-	"D_global_asm_8072126C",
-	"D_global_asm_80721298",
-	"D_global_asm_807212B0",
-	"D_global_asm_807212C8",
-	"D_global_asm_807212E0",
-	"D_global_asm_80721378",
-	"D_global_asm_8072139C",
-	"D_global_asm_807213D0",
-	"D_global_asm_8072140C",
-	"D_global_asm_8072145C",
-	"D_global_asm_80721474",
-	"D_global_asm_807214A0",
-	"D_global_asm_807214B8",
-	"D_global_asm_807214D0",
-	"D_global_asm_807214E8",
-	"D_global_asm_80721500",
-	"D_global_asm_80721518",
-	"D_global_asm_80721530",
-	"D_global_asm_8061ACA0",
+stubs = [
+    "func_80071B50_72750",
+    "func_80071C8C_7288C",
+    "func_800818C8_824C8",
 ]
 
-#stubs = [
-    #"func_global_asm_805FB5C4"
-#]
 
-#patch out __osSetSpStatus call
+#patch a load_overlays call in, move an instruction an NOP the original
+[[patches.hook]]
+func = "OvlLoad"
+text = """ctx->r6 = SUB32(ctx->r3, ctx->r6);
+    load_overlays(ctx->r4, ctx->r5, ctx->r6);"""
+before_vram = 0x8000B320
+
+#NOP instruction we moved
 [[patches.instruction]]
-func = "func_global_asm_805FB5C4"
-vram = 0x805FB710
-value = 0x00000000
-
-#yield for sound effects so the game doesn't infinite loop (this makes the game lag badly, dont use)
-#[[patches.hook]]
-#func = "func_global_asm_80735CF4"
-#text = "    yield_self(rdram);"
-#before_vram = 0x80735D7C
-
-#Patch an uncached read to a cached read
-[[patches.instruction]]
-func = "func_dk64_boot_800009D0"
-vram = 0x800009E0
-value = 0x3C04802F # lui $a0, 0xA02F -> lui $a0, 0x802F
-
-#Patch an uncached read to a cached read
-[[patches.instruction]]
-func = "func_dk64_boot_800009D0"
-vram = 0x800009FC
-value = 0x3C0F8030 # lui $t7, 0xA030 -> lui $t7, 0x8030
-
-
-#[[patches.instruction]]
-#func = "func_dk64_boot_800009D0"
-#vram = 0x800009F4
-#value = 0x10000005 # BEQ	V1, T6, 0x80000A0C -> B 0x80000A0C
-
-[[patches.instruction]]
-func = "func_dk64_boot_8000102C"
-vram = 0x80001080
-value = 0x00000000 #NOP
-
-
-
-[[patches.instruction]]
-func = "func_dk64_boot_80000450"
-vram = 0x80000488
-value = 0x00000000 #NOP original osPiRawStartDma call
+func = "OvlLoad"
+vram = 0x8000B324
+value = 0x00000000 #NOP -> ctx->r6 = SUB32(ctx->r3, ctx->r6); as it was done in the above hook
 
 [[patches.hook]]
-func = "func_dk64_boot_80000450"
-text = "ctx->r6 = MEM_W(ctx->r29, 0X28);boot_osPiRawStartDma(rdram, ctx);"
-before_vram = 0x8000048C #osPiRawStartDma call
+func = "func_8000B1A0_BDA0"
+text = """ctx->r6 = SUB32(ctx->r17, ctx->r18);
+    load_overlays(ctx->r4, ctx->r5, ctx->r6);"""
+before_vram = 0x8000B248
 
-[[patches.hook]]
-func = "func_dk64_boot_80000450"
-text = "load_dk64_overlay(ctx->r4, ctx->r6, ctx->r5 - ctx->r4);"
-before_vram = 0x80000450
-
-[[patches.hook]]
-func = "func_dk64_boot_800005A8"
-text = """int32_t ovl_rom_start = 0x113F0;
-int32_t ovl_ram = 0x805FB300;
-int32_t uncompressed_size = 0x1DE360;
-load_dk64_overlay(ovl_rom_start, ovl_ram, uncompressed_size);"""
-before_vram = 0x80000734
-
-[[patches.hook]]
-func = "func_global_asm_8060B140"
-text = "load_dk64_overlay(ctx->r4, 0, 0);"
-before_vram = 0x8060B140
-
-#Temporary, makes game boot
+#NOP instruction we moved
 [[patches.instruction]]
-func = "func_global_asm_805FBFF4"
-vram = 0x805FC020
-value = 0x24140000 #ADDIU s4, r0, 1 -> ADDIU s4, r0, 0 (makes the game skip a osSendMesg call)
-
-#[[patches.hook]]
-#func = "func_global_asm_805FBFF4"
-#text = "    yield_self(rdram);"
-#before_vram = 0x805FC218
-
-
-[[patches.hook]]
-func = "func_global_asm_80601EE4"
-text = """osAiGetLength_recomp(rdram, ctx);
-	ctx->r3 = ctx->r2;"""
-before_vram = 0x80601F08
-
-[[patches.instruction]]
-func = "func_global_asm_80601EE4"
-vram = 0x80601F0C
-value = 0x00000000 #NOP osAiGetLength that is done without a function call
-
-#These next 3 patches patch out a very convoluted way of loading an uncached memory address
-[[patches.instruction]]
-func = "func_global_asm_80611730"
-vram = 0x8061176C
-value = 0x3C0F8000
-
-[[patches.instruction]]
-func = "func_global_asm_80611730"
-vram = 0x80611770
-value = 0x8DEF02E8
-
-[[patches.instruction]]
-func = "func_global_asm_80611730"
-vram = 0x80611774
-value = 0x00000000
-
-
-
-[[patches.instruction]]
-func = "func_dk64_boot_8000102C"
-vram = 0x80001080
-value = 0x00000000 #NOP original osPiRawStartDma call
-
-[[patches.hook]]
-func = "func_dk64_boot_8000102C"
-text = "boot_osPiRawStartDma(rdram, ctx);"
-before_vram = 0x80001088 #osPiRawStartDma call
-
-[[patches.hook]]
-func = "func_dk64_boot_8000102C"
-text = "load_overlays(ctx->r4, ctx->r6, ctx->r5);"
-before_vram = 0x8000102C
-
-
-#NMI related
-[[patches.instruction]]
-func = "func_global_asm_805FB5C4"
-vram = 0x805FB650
-value = 0x0C002F34 #jal osStopThread -> jal osDestoryThread
-
-#Temporary, important to actually fix this
-#[[patches.instruction]]
-#func = "func_global_asm_805FBFF4"
-#vram = 0x805FC224
-#value = 0x00000000 #jal osSendMesg -> nop
-
-
-
-[[patches.hook]]
-func = "func_global_asm_805FB300"
-text = """static int threadStarted = 0;
-	if (threadStarted == 1) {
-		osDestroyThread(rdram, 0x80761430);
-    } else {
-		threadStarted = 1;
-	}"""
-before_vram = 0x805FB560
-
-
-#patch frame skipping to be constant
-[[patches.instruction]]
-func = "func_global_asm_80600674"
-vram = 0x806008C8
-value = 0x00000000 #SW	A3, 0x4478 (AT) -> nop
-
-[[patches.instruction]]
-func = "func_global_asm_80600674"
-vram = 0x80600934
-value = 0x00000000 #SW	T8, 0x4478 (AT) -> nop
-
-[[patches.hook]]
-func = "func_global_asm_80600674"
-text = "    yield_self(rdram);"
-before_vram = 0x806008FC
-
-
-
-
+func = "func_8000B1A0_BDA0"
+vram = 0x8000B24C
+value = 0x00000000 #NOP -> ctx->r6 = SUB32(ctx->r17, ctx->r18); as it was done in the above hook

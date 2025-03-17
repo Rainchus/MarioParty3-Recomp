@@ -15,64 +15,8 @@
 #include "ultramodern/config.hpp"
 #include "librecomp/addresses.hpp"
 
-//map compressed rom address -> decompressed rom address, then load the overlay
-extern "C" void load_dk64_overlay(uint32_t compressed_rom, int32_t ram_addr, uint32_t size) {
-    uint32_t decompressed_rom = 0;
-    switch (compressed_rom) {
-        case 0x113F0: //global_asm
-            decompressed_rom = 0x2000000;
-            ram_addr = 0x805FB300;
-            size = 0x165D50;
-            break;
-        case 0xCBE70: //menu
-            decompressed_rom = 0x2165D50;
-            ram_addr = 0x80024000;
-            size = 0xFF10;
-            break;
-        case 0xD4B00: //multiplayer
-            decompressed_rom = 0x2175C60;
-            ram_addr = 0x80024000;
-            size = 0x3100;
-            break;
-        case 0xD6B00: //minecart
-            decompressed_rom = 0x2178D60;
-            ram_addr = 0x80024000;
-            size = 0x4E10;
-            break;
-        case 0xD9A40: //bonus
-            decompressed_rom = 0x217DB70;
-            ram_addr = 0x80024000;
-            size = 0x9EF0;
-            break;
-        case 0xDF600: //race
-            decompressed_rom = 0x2187A60;
-            ram_addr = 0x80024000;
-            size = 0xC160;
-            break;
-        case 0xE6780: //critter
-            decompressed_rom = 0x2193BC0;
-            ram_addr = 0x80024000;
-            size = 0x61B0;
-            break;
-        case 0xEA0B0: //boss
-            decompressed_rom = 0x2199D70;
-            ram_addr = 0x80024000;
-            size = 0x12DC0;
-            break;
-        case 0xF41A0: //arcade
-            decompressed_rom = 0x21ACB30;
-            ram_addr = 0x80024000;
-            size = 0x26C00;
-            break;
-        case 0xFD2F0: //jetpac
-            decompressed_rom = 0x21D3730;
-            ram_addr = 0x80024000;
-            size = 0xAC30;
-            break;
-    }
-    if (decompressed_rom != 0) {
-        load_overlays(decompressed_rom, ram_addr, size);
-    }
+extern "C" void setjmp_recomp(uint8_t* rdram, recomp_context* ctx) {
+    printf("setjmp called, program will now hang\n");
 }
 
 extern "C" void boot_osPiRawStartDma(uint8_t* rdram, recomp_context* ctx) {

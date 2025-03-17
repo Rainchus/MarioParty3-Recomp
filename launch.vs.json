@@ -5,8 +5,8 @@
     {
       "type": "default",
       "project": "CMakeLists.txt",
-      "projectTarget": "DK64Recompiled.exe",
-      "name": "DK64Recompiled.exe",
+      "projectTarget": "MarioParty3Recompiled.exe",
+      "name": "MarioParty3Recompiled.exe",
       "currentDir": "${workspaceRoot}"
     }
   ]
