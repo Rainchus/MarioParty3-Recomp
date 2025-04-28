@@ -27,6 +27,7 @@
 #include "zelda_render.h"
 #include "zelda_support.h"
 #include "zelda_game.h"
+#include "recomp_data.h"
 #include "ovl_patches.hpp"
 #include "librecomp/game.hpp"
 #include "librecomp/mods.hpp"
@@ -36,6 +37,8 @@
 #include "../../patches/input.h"
 #include "../../patches/sound.h"
 #include "../../patches/misc_funcs.h"
+
+#include "mods/mm_recomp_dpad_builtin.h"
 
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
@@ -544,13 +547,15 @@ void release_preload(PreloadContext& context) {
 #endif
 
 void enable_texture_pack(recomp::mods::ModContext& context, const recomp::mods::ModHandle& mod) {
-    (void)context;
-    zelda64::renderer::enable_texture_pack(mod);
+    zelda64::renderer::enable_texture_pack(context, mod);
 }
 
-void disable_texture_pack(recomp::mods::ModContext& context, const recomp::mods::ModHandle& mod) {
-    (void)context;
+void disable_texture_pack(recomp::mods::ModContext&, const recomp::mods::ModHandle& mod) {
     zelda64::renderer::disable_texture_pack(mod);
+}
+
+void reorder_texture_pack(recomp::mods::ModContext&) {
+    zelda64::renderer::trigger_texture_pack_update();
 }
 
 #define REGISTER_FUNC(name) recomp::overlays::register_base_export(#name, name)
@@ -614,6 +619,8 @@ int main(int argc, char** argv) {
         recomp::register_game(game);
     }
 
+    recomp::mods::register_embedded_mod("mm_recomp_dpad_builtin", { (const uint8_t*)(mm_recomp_dpad_builtin), std::size(mm_recomp_dpad_builtin)});
+
     REGISTER_FUNC(recomp_get_window_resolution);
     REGISTER_FUNC(recomp_get_target_aspect_ratio);
     REGISTER_FUNC(recomp_get_target_framerate);
@@ -627,9 +634,12 @@ int main(int argc, char** argv) {
     REGISTER_FUNC(recomp_get_mouse_deltas);
     REGISTER_FUNC(recomp_get_inverted_axes);
     REGISTER_FUNC(recomp_get_analog_inverted_axes);
+    recompui::register_ui_exports();
+    recomputil::register_data_api_exports();
 
     zelda64::register_overlays();
     zelda64::register_patches();
+    recomputil::init_extended_actor_data();
     zelda64::load_config();
 
     recomp::rsp::callbacks_t rsp_callbacks{
@@ -678,38 +688,12 @@ int main(int argc, char** argv) {
         .allow_runtime_toggle = true,
         .on_enabled = enable_texture_pack,
         .on_disabled = disable_texture_pack,
+        .on_reordered = reorder_texture_pack,
     };
     auto texture_pack_content_type_id = recomp::mods::register_mod_content_type(texture_pack_content_type);
 
     // Register the .rtz texture pack file format with the previous content type as its only allowed content type.
     recomp::mods::register_mod_container_type("rtz", std::vector{ texture_pack_content_type_id }, false);
-
-    recomp::mods::scan_mods();
-
-    printf("Found mods:\n");
-    for (const auto& mod : recomp::mods::get_mod_details("mm")) {
-        printf("  %s(%s)\n", mod.mod_id.c_str(), mod.version.to_string().c_str());
-        if (!mod.authors.empty()) {
-            printf("    Authors: %s", mod.authors[0].c_str());
-            for (size_t author_index = 1; author_index < mod.authors.size(); author_index++) {
-                const std::string& author = mod.authors[author_index];
-                printf(", %s", author.c_str());
-            }
-            printf("\n");
-            printf("    Runtime toggleable: %d\n", mod.runtime_toggleable);
-        }
-        if (!mod.dependencies.empty()) {
-            printf("    Dependencies: %s:%s", mod.dependencies[0].mod_id.c_str(), mod.dependencies[0].version.to_string().c_str());
-            for (size_t dep_index = 1; dep_index < mod.dependencies.size(); dep_index++) {
-                const recomp::mods::Dependency& dep = mod.dependencies[dep_index];
-                printf(", %s:%s", dep.mod_id.c_str(), dep.version.to_string().c_str());
-            }
-            printf("\n");
-        }
-        // TODO load all mods as a temporary solution to not having a UI yet.
-        recomp::mods::enable_mod(mod.mod_id, true);
-    }
-    printf("\n");
 
     recomp::start(
         project_version,

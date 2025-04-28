@@ -10,6 +10,7 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 # set(CMAKE_CXX_VISIBILITY_PRESET hidden)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND CMAKE_CXX_SIMULATE_ID STREQUAL "MSVC")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-everything /W4")
@@ -38,6 +39,8 @@ endif()
 
 set(RT64_STATIC TRUE)
 set(RT64_SDL_WINDOW_VULKAN TRUE)
+add_compile_definitions(HLSL_CPU)
+
 add_subdirectory(${CMAKE_SOURCE_DIR}/lib/rt64 ${CMAKE_BINARY_DIR}/rt64)
 
 # set(BUILD_SHARED_LIBS_SAVED "${BUILD_SHARED_LIBS}")
@@ -45,10 +48,10 @@ set(BUILD_SHARED_LIBS OFF)
 SET(LUNASVG_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 add_subdirectory(${CMAKE_SOURCE_DIR}/lib/lunasvg)
 # set(BUILD_SHARED_LIBS "${BUILD_SHARED_LIBS_SAVED}")
-SET(ENABLE_SVG_PLUGIN ON CACHE BOOL "" FORCE)
+SET(RMLUI_SVG_PLUGIN ON CACHE BOOL "" FORCE)
 SET(RMLUI_TESTS_ENABLED OFF CACHE BOOL "" FORCE)
 add_subdirectory(${CMAKE_SOURCE_DIR}/lib/RmlUi)
-target_compile_definitions(RmlCore PRIVATE LUNASVG_BUILD_STATIC)
+target_compile_definitions(rmlui_core PRIVATE LUNASVG_BUILD_STATIC)
 
 add_subdirectory(${CMAKE_SOURCE_DIR}/lib/N64ModernRuntime)
 
@@ -150,13 +153,41 @@ set (SOURCES
     ${CMAKE_SOURCE_DIR}/src/game/debug.cpp
     ${CMAKE_SOURCE_DIR}/src/game/quicksaving.cpp
     ${CMAKE_SOURCE_DIR}/src/game/recomp_api.cpp
+    ${CMAKE_SOURCE_DIR}/src/game/recomp_actor_api.cpp
+    ${CMAKE_SOURCE_DIR}/src/game/recomp_data_api.cpp
     ${CMAKE_SOURCE_DIR}/src/game/rom_decompression.cpp
 
     ${CMAKE_SOURCE_DIR}/src/ui/ui_renderer.cpp
+    ${CMAKE_SOURCE_DIR}/src/ui/ui_state.cpp
     ${CMAKE_SOURCE_DIR}/src/ui/ui_launcher.cpp
     ${CMAKE_SOURCE_DIR}/src/ui/ui_config.cpp
+    ${CMAKE_SOURCE_DIR}/src/ui/ui_prompt.cpp
+    ${CMAKE_SOURCE_DIR}/src/ui/ui_config_sub_menu.cpp
     ${CMAKE_SOURCE_DIR}/src/ui/ui_color_hack.cpp
     ${CMAKE_SOURCE_DIR}/src/ui/ui_rml_hacks.cpp
+    ${CMAKE_SOURCE_DIR}/src/ui/ui_elements.cpp
+    ${CMAKE_SOURCE_DIR}/src/ui/ui_mod_details_panel.cpp
+    ${CMAKE_SOURCE_DIR}/src/ui/ui_mod_installer.cpp
+    ${CMAKE_SOURCE_DIR}/src/ui/ui_mod_menu.cpp
+    ${CMAKE_SOURCE_DIR}/src/ui/ui_api.cpp
+    ${CMAKE_SOURCE_DIR}/src/ui/ui_api_events.cpp
+    ${CMAKE_SOURCE_DIR}/src/ui/ui_api_images.cpp
+    ${CMAKE_SOURCE_DIR}/src/ui/ui_utils.cpp
+    ${CMAKE_SOURCE_DIR}/src/ui/util/hsv.cpp
+    ${CMAKE_SOURCE_DIR}/src/ui/core/ui_context.cpp
+    ${CMAKE_SOURCE_DIR}/src/ui/elements/ui_button.cpp
+    ${CMAKE_SOURCE_DIR}/src/ui/elements/ui_clickable.cpp
+    ${CMAKE_SOURCE_DIR}/src/ui/elements/ui_container.cpp
+    ${CMAKE_SOURCE_DIR}/src/ui/elements/ui_element.cpp
+    ${CMAKE_SOURCE_DIR}/src/ui/elements/ui_image.cpp
+    ${CMAKE_SOURCE_DIR}/src/ui/elements/ui_label.cpp
+    ${CMAKE_SOURCE_DIR}/src/ui/elements/ui_radio.cpp
+    ${CMAKE_SOURCE_DIR}/src/ui/elements/ui_scroll_container.cpp
+    ${CMAKE_SOURCE_DIR}/src/ui/elements/ui_slider.cpp
+    ${CMAKE_SOURCE_DIR}/src/ui/elements/ui_span.cpp
+    ${CMAKE_SOURCE_DIR}/src/ui/elements/ui_style.cpp
+    ${CMAKE_SOURCE_DIR}/src/ui/elements/ui_text_input.cpp
+    ${CMAKE_SOURCE_DIR}/src/ui/elements/ui_toggle.cpp
 
     ${CMAKE_SOURCE_DIR}/rsp/aspMain.cpp
     ${CMAKE_SOURCE_DIR}/rsp/njpgdspMain.cpp
@@ -183,6 +214,7 @@ target_include_directories(Zelda64Recompiled PRIVATE
     ${CMAKE_SOURCE_DIR}/lib/rt64/src/render
     ${CMAKE_SOURCE_DIR}/lib/freetype-windows-binaries/include
     ${CMAKE_SOURCE_DIR}/lib/rt64/src/contrib/nativefiledialog-extended/src/include
+    ${CMAKE_SOURCE_DIR}/lib/slot_map/slot_map
     ${CMAKE_BINARY_DIR}/shaders
     ${CMAKE_CURRENT_BINARY_DIR}
 )
@@ -315,8 +347,8 @@ target_link_libraries(Zelda64Recompiled PRIVATE
     librecomp
     ultramodern
     rt64
-    RmlCore
-    RmlDebugger
+    RmlUi::Core
+    RmlUi::Debugger
     nfd
     lunasvg
 )
@@ -355,6 +387,27 @@ endif()
 
 build_vertex_shader(Zelda64Recompiled "shaders/InterfaceVS.hlsl" "shaders/InterfaceVS.hlsl")
 build_pixel_shader(Zelda64Recompiled "shaders/InterfacePS.hlsl" "shaders/InterfacePS.hlsl")
+
+# Embed all .nrm files in the "mods" directory
+file(GLOB NRM_FILES "${CMAKE_SOURCE_DIR}/mods/*.nrm")
+
+set(GENERATED_NRM_SOURCES "")
+
+foreach(NRM_FILE ${NRM_FILES})
+    get_filename_component(NRM_NAME ${NRM_FILE} NAME_WE)
+    set(OUT_C "${CMAKE_CURRENT_BINARY_DIR}/mods/${NRM_NAME}.c")
+    set(OUT_H "${CMAKE_CURRENT_BINARY_DIR}/mods/${NRM_NAME}.h")
+
+    add_custom_command(
+        OUTPUT ${OUT_C} ${OUT_H}
+        COMMAND file_to_c ${NRM_FILE} ${NRM_NAME} ${OUT_C} ${OUT_H}
+        DEPENDS ${NRM_FILE}
+    )
+
+    list(APPEND GENERATED_NRM_SOURCES ${OUT_C})
+endforeach()
+
+target_sources(Zelda64Recompiled PRIVATE ${GENERATED_NRM_SOURCES})
 
 target_sources(Zelda64Recompiled PRIVATE ${SOURCES})
 
