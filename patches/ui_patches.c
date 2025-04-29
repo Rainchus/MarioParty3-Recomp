@@ -633,6 +633,16 @@ RECOMP_PATCH void Interface_Draw(PlayState* play) {
         Interface_SetOrthoView(interfaceCtx);
 
         Interface_DrawMinigameIcons(play);
+
+        // @recomp If the moon crash timer is running, center align timers and shift down.
+        bool moon_crash_timer_running = gSaveContext.timerStates[TIMER_ID_MOON_CRASH] != TIMER_STATE_OFF;
+        if (moon_crash_timer_running) {
+            // @recomp Use normal alignment and shift down for clock
+            gEXSetRectAlign(OVERLAY_DISP++, G_EX_ORIGIN_NONE, G_EX_ORIGIN_NONE, 0, margin_reduction * 4, 0, margin_reduction * 4);
+            gEXSetViewportAlign(OVERLAY_DISP++, G_EX_ORIGIN_NONE, 0, margin_reduction * 4);
+            Interface_SetOrthoView(interfaceCtx);
+        }
+
         Interface_DrawTimers(play);
         
         // @recomp Restore normal alignment and shift down for minigame countdown or clock
@@ -1201,8 +1211,10 @@ RECOMP_PATCH void Message_DrawSceneTitleCard(PlayState* play, Gfx** gfxP) {
     gDPSetAlphaDither(gfx++, G_AD_NOTPATTERN);
     gDPSetPrimColor(gfx++, 0, 0, 0, 0, 0, msgCtx->textboxColorAlphaCurrent);
     gDPSetEnvColor(gfx++, 140, 40, 160, 255);
-    gDPLoadTextureBlock(gfx++, gSceneTitleCardGradientTex, G_IM_FMT_I, G_IM_SIZ_8b, 64, 1, 0, G_TX_NOMIRROR | G_TX_WRAP,
-                        G_TX_NOMIRROR | G_TX_WRAP, 6, G_TX_NOMASK, G_TX_NOLOD, G_TX_NOLOD);
+    // @recomp Use clamp as the addressing mode to prevent the texture from wrapping on the left edge, which can be visible
+    // if HD textures are in use.
+    gDPLoadTextureBlock(gfx++, gSceneTitleCardGradientTex, G_IM_FMT_I, G_IM_SIZ_8b, 64, 1, 0, G_TX_NOMIRROR | G_TX_CLAMP,
+                        G_TX_NOMIRROR | G_TX_CLAMP, 6, G_TX_NOMASK, G_TX_NOLOD, G_TX_NOLOD);
     // @recomp Decrease dsdx from the original 204 to 200 in order to hide the glitching on the right edge.
     gSPTextureRectangle(gfx++, 0, XREG(77) << 2, 320 << 2, (XREG(77) + XREG(76)) << 2, G_TX_RENDERTILE, 0, 0, 200,
                         1 << 10);
