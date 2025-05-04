@@ -136,7 +136,10 @@ You'll probably also want to change the default behavior so that you don't need 
 Instead, you can change the game by installing mods. See the [mod support](#mod-support) section for details.
 
 #### Does this project have a randomizer?
-Yes, there is a randomizer available as a mod for this project which can be found on the thunderstore page linked in [mod support](#mod-support).
+Yes, there is a randomizer available as a mod for this project which can be found at https://github.com/RecompRando/MMRecompRando/releases/latest. Simply download MMRecompRando.zip from the releases and install it like any other mod.
+
+#### Can you run this project as a portable application?
+Yes, if you place a file named `portable.txt` in the same folder as the executable then this project will run in portable mode. In portable mode, the save files, config files, and mods are placed in the same folder as the executable.
 
 ## Known Issues
 * Overlays such as MSI Afterburner and other software such as Wallpaper Engine can cause performance issues with this project that prevent the game from rendering correctly. Disabling such software is recommended.
