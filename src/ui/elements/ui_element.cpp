@@ -75,6 +75,11 @@ void Element::register_event_listeners(uint32_t events_enabled) {
         base->AddEventListener(Rml::EventId::Click, this);
     }
 
+    if (events_enabled & Events(EventType::MouseButton)) {
+        base->AddEventListener(Rml::EventId::Mousedown, this);
+        base->AddEventListener(Rml::EventId::Mouseup, this);
+    }
+
     if (events_enabled & Events(EventType::Focus)) {
         base->AddEventListener(Rml::EventId::Focus, this);
         base->AddEventListener(Rml::EventId::Blur, this);
@@ -152,6 +157,19 @@ void Element::set_id(const std::string& new_id) {
     base->SetId(new_id);
 }
 
+recompui::MouseButton convert_rml_mouse_button(int button) {
+    switch (button) {
+        case 0:
+            return recompui::MouseButton::Left;
+        case 1:
+            return recompui::MouseButton::Right;
+        case 2:
+            return recompui::MouseButton::Middle;
+        default:
+            return recompui::MouseButton::Count;
+    }
+}
+
 void Element::ProcessEvent(Rml::Event &event) {
     ContextId prev_context = recompui::try_close_current_context();
     ContextId context = ContextId::null();
@@ -171,6 +189,22 @@ void Element::ProcessEvent(Rml::Event &event) {
     switch (event.GetId()) {
     case Rml::EventId::Click:
         handle_event(Event::click_event(event.GetParameter("mouse_x", 0.0f), event.GetParameter("mouse_y", 0.0f)));
+        break;
+    case Rml::EventId::Mousedown:
+        {
+            MouseButton mouse_button = convert_rml_mouse_button(event.GetParameter("button", 3));
+            if (mouse_button != MouseButton::Count) {
+                handle_event(Event::mousebutton_event(event.GetParameter("mouse_x", 0.0f), event.GetParameter("mouse_y", 0.0f), mouse_button, true));
+            }
+        }
+        break;
+    case Rml::EventId::Mouseup:
+        {
+            MouseButton mouse_button = convert_rml_mouse_button(event.GetParameter("button", 3));
+            if (mouse_button != MouseButton::Count) {
+                handle_event(Event::mousebutton_event(event.GetParameter("mouse_x", 0.0f), event.GetParameter("mouse_y", 0.0f), mouse_button, false));
+            }
+        }
         break;
     case Rml::EventId::Keydown:
         switch ((Rml::Input::KeyIdentifier)event.GetParameter<int>("key_identifier", 0)) {
@@ -343,8 +377,12 @@ std::string escape_rml(std::string_view string)
 
 void Element::set_text(std::string_view text) {
     if (can_set_text) {
+        // Queue the text update. If it's applied immediately, it might happen
+        // while the document is being updated or rendered. This can cause a crash
+        // due to the child elements being deleted while the document is being updated.
+        // Queueing them defers it to the update thread, which prevents that issue.
         // Escape the string into Rml to prevent element injection.
-        base->SetInnerRML(escape_rml(text));
+        get_current_context().queue_set_text(this, escape_rml(text));
     }
     else {
         assert(false && "Attempted to set text of an element that cannot have its text set.");

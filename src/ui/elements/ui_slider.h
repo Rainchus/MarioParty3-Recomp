@@ -23,9 +23,10 @@ namespace recompui {
         double max_value = 100.0;
         double step_value = 0.0;
         std::vector<std::function<void(double)>> value_changed_callbacks;
+        std::function<void(bool)> focus_callback = nullptr;
 
         void set_value_internal(double v, bool setup, bool trigger_callbacks);
-        void bar_clicked(float x, float y);
+        void bar_pressed(float x, float y);
         void bar_dragged(float x, float y, DragPhase phase);
         void circle_dragged(float x, float y, DragPhase phase);
         void update_value_from_mouse(float x);
@@ -51,6 +52,7 @@ namespace recompui {
         double get_step_value() const;
         void add_value_changed_callback(std::function<void(double)> callback);
         void do_step(bool increment);
+        void set_focus_callback(std::function<void(bool)> callback);
     };
 
 } // namespace recompui

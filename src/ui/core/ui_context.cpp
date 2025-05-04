@@ -36,7 +36,8 @@ namespace recompui {
         Element root_element;
         Element* autofocus_element = nullptr;
         std::vector<Element*> loose_elements;
-        std::unordered_set<ResourceId> to_update;        
+        std::unordered_set<ResourceId> to_update;
+        std::vector<std::tuple<Element*, ResourceId, std::string>> to_set_text;     
         bool captures_input = true;
         bool captures_mouse = true;
         Context(Rml::ElementDocument* document) : document(document), root_element(document) {}
@@ -67,6 +68,8 @@ enum class ContextErrorType {
     AddResourceToWrongContext,
     UpdateElementWithoutContext,
     UpdateElementInWrongContext,
+    SetTextElementWithoutContext,
+    SetTextElementInWrongContext,
     GetResourceWithoutOpen,
     GetResourceFailed,
     DestroyResourceWithoutOpen,
@@ -118,6 +121,12 @@ void context_error(recompui::ContextId id, ContextErrorType type) {
             break;
         case ContextErrorType::UpdateElementInWrongContext:
             error_message = "Attempted to update a UI element in a different UI context than the one that's open";
+            break;
+        case ContextErrorType::SetTextElementWithoutContext:
+            error_message = "Attempted to set the text of a UI element with no open UI context";
+            break;
+        case ContextErrorType::SetTextElementInWrongContext:
+            error_message = "Attempted to set the text of a UI element in a different UI context than the one that's open";
             break;
         case ContextErrorType::GetResourceWithoutOpen:
             error_message = "Attempted to get a UI resource with no open UI context";
@@ -407,6 +416,40 @@ void recompui::ContextId::process_updates() {
 
         static_cast<Element*>(cur_resource->get())->handle_event(update_event);
     }
+
+    std::vector<std::tuple<Element*, ResourceId, std::string>> to_set_text = std::move(opened_context->to_set_text);
+
+    // Delete the Rml elements that are pending deletion.
+    for (auto cur_text_update : to_set_text) {
+        Element* element_ptr = std::get<0>(cur_text_update);
+        ResourceId resource = std::get<1>(cur_text_update);
+        std::string& text = std::get<2>(cur_text_update);
+
+        // If the resource ID is valid, prefer that as we can quickly validate if the resource still exists.
+        if (resource != ResourceId::null()) {
+            resource_slotmap::key cur_key{ resource.slot_id };
+            std::unique_ptr<Style>* cur_resource = opened_context->resources.get(cur_key);
+
+            // Make sure the resource exists before setting its text, as it may have been deleted.
+            if (cur_resource == nullptr) {
+                continue;
+            }
+
+            // Perform the text update.
+            static_cast<Element*>(cur_resource->get())->base->SetInnerRML(text);
+        }
+        // Otherwise we use the element pointer, but we need to validate that it still exists before doing so.
+        else {
+            // Scan the current resources to find the target element.
+            for (const std::unique_ptr<Style>& cur_e : opened_context->resources) {
+                if (cur_e.get() == element_ptr) {
+                    element_ptr->base->SetInnerRML(text);
+                    // We can stop after finding the element.
+                    break;
+                }
+            }
+        }
+    }
 }
 
 bool recompui::ContextId::captures_input() {
@@ -512,6 +555,20 @@ void recompui::ContextId::queue_element_update(ResourceId element) {
     }
 
     opened_context->to_update.emplace(element);
+}
+
+void recompui::ContextId::queue_set_text(Element* element, std::string&& text) {
+    // Ensure a context is currently opened by this thread.
+    if (opened_context_id == ContextId::null()) {
+        context_error(*this, ContextErrorType::SetTextElementWithoutContext);
+    }
+
+    // Check that the context that was specified is the same one that's currently open.
+    if (*this != opened_context_id) {
+        context_error(*this, ContextErrorType::SetTextElementInWrongContext);
+    }
+
+    opened_context->to_set_text.emplace_back(std::make_tuple(element, element->resource_id, std::move(text)));
 }
 
 recompui::Style* recompui::ContextId::create_style() {
