@@ -18,6 +18,13 @@
 #else
 #include "SDL2/SDL.h"
 #include "SDL2/SDL_syswm.h"
+// Undefine x11 macros that get included by SDL_syswm.h.
+#undef None
+#undef Status
+#undef LockMask
+#undef ControlMask
+#undef Success
+#undef Always
 #endif
 
 #include "recomp_ui.h"
@@ -43,12 +50,13 @@
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
+#include <timeapi.h>
 #include "SDL_syswm.h"
 #endif
 
 #include "../../lib/rt64/src/contrib/stb/stb_image.h"
 
-const std::string version_string = "1.2.0";
+const std::string version_string = "1.2.1-dev";
 
 template<typename... Ts>
 void exit_error(const char* str, Ts ...args) {
@@ -579,6 +587,26 @@ int main(int argc, char** argv) {
     }
 
 #ifdef _WIN32
+    // Set up high resolution timing period.
+    timeBeginPeriod(1);
+
+    // Process arguments.
+    for (int i = 1; i < argc; i++)
+    {
+        if (strcmp(argv[i], "--show-console") == 0)
+        {
+            if (GetConsoleWindow() == nullptr)
+            {
+                AllocConsole();
+                freopen("CONIN$", "r", stdin);
+                freopen("CONOUT$", "w", stderr);
+                freopen("CONOUT$", "w", stdout);
+            }
+
+            break;
+        }
+    }
+
     // Set up console output to accept UTF-8 on windows
     SetConsoleOutputCP(CP_UTF8);
 
@@ -721,6 +749,11 @@ int main(int argc, char** argv) {
     if (preloaded) {
         release_preload(preload_context);
     }
+
+#ifdef _WIN32
+    // End high resolution timing period.
+    timeEndPeriod(1);
+#endif
 
     return EXIT_SUCCESS;
 }
