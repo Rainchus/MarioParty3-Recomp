@@ -40,12 +40,12 @@
 #include "librecomp/mods.hpp"
 #include "librecomp/helpers.hpp"
 
-#include "../../patches/graphics.h"
-#include "../../patches/input.h"
-#include "../../patches/sound.h"
+//#include "../../patches/graphics.h"
+//#include "../../patches/input.h"
+//#include "../../patches/sound.h"
 #include "../../patches/misc_funcs.h"
 
-#include "mods/mm_recomp_dpad_builtin.h"
+//#include "mods/mm_recomp_dpad_builtin.h"
 
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
@@ -327,16 +327,16 @@ void reset_audio(uint32_t output_freq) {
     update_audio_converter();
 }
 
-extern RspUcodeFunc njpgdspMain;
-extern RspUcodeFunc aspMain;
+// extern RspUcodeFunc njpgdspMain;
+extern RspUcodeFunc n_aspMain;
 
 RspUcodeFunc* get_rsp_microcode(const OSTask* task) {
     switch (task->t.type) {
     case M_AUDTASK:
-        return aspMain;
+        return n_aspMain;
 
-    case M_NJPEGTASK:
-        return njpgdspMain;
+    // case M_NJPEGTASK:
+    //     return njpgdspMain;
 
     default:
         fprintf(stderr, "Unknown task: %" PRIu32 "\n", task->t.type);
@@ -350,14 +350,12 @@ gpr get_entrypoint_address();
 // array of supported GameEntry objects
 std::vector<recomp::GameEntry> supported_games = {
     {
-        .rom_hash = 0xEF18B4A9E2386169ULL,
-        .internal_name = "ZELDA MAJORA'S MASK",
-        .game_id = u8"mm.n64.us.1.0",
-        .mod_game_id = "mm",
-        .save_type = recomp::SaveType::Flashram,
+        .rom_hash = 0x39f865d6ec68e629ULL,
+        .internal_name = "MARIO PARTY 3",
+        .game_id = u8"mp3.n64.us",
+        .mod_game_id = "mp3",
+        .save_type = recomp::SaveType::Eep16k,
         .is_enabled = false,
-        .decompression_routine = zelda64::decompress_mm,
-        .has_compressed_code = true,
         .entrypoint_address = get_entrypoint_address(),
         .entrypoint = recomp_entrypoint,
     },
@@ -655,21 +653,21 @@ int main(int argc, char** argv) {
         recomp::register_game(game);
     }
 
-    recomp::mods::register_embedded_mod("mm_recomp_dpad_builtin", { (const uint8_t*)(mm_recomp_dpad_builtin), std::size(mm_recomp_dpad_builtin)});
+    //recomp::mods::register_embedded_mod("mm_recomp_dpad_builtin", { (const uint8_t*)(mm_recomp_dpad_builtin), std::size(mm_recomp_dpad_builtin)});
 
-    REGISTER_FUNC(recomp_get_window_resolution);
-    REGISTER_FUNC(recomp_get_target_aspect_ratio);
-    REGISTER_FUNC(recomp_get_target_framerate);
-    REGISTER_FUNC(recomp_get_autosave_enabled);
-    REGISTER_FUNC(recomp_get_analog_cam_enabled);
-    REGISTER_FUNC(recomp_get_camera_inputs);
-    REGISTER_FUNC(recomp_get_targeting_mode);
-    REGISTER_FUNC(recomp_get_bgm_volume);
-    REGISTER_FUNC(recomp_get_low_health_beeps_enabled);
-    REGISTER_FUNC(recomp_get_gyro_deltas);
-    REGISTER_FUNC(recomp_get_mouse_deltas);
-    REGISTER_FUNC(recomp_get_inverted_axes);
-    REGISTER_FUNC(recomp_get_analog_inverted_axes);
+    //REGISTER_FUNC(recomp_get_window_resolution);
+    //REGISTER_FUNC(recomp_get_target_aspect_ratio);
+    //REGISTER_FUNC(recomp_get_target_framerate);
+    //REGISTER_FUNC(recomp_get_autosave_enabled);
+    //REGISTER_FUNC(recomp_get_analog_cam_enabled);
+    //REGISTER_FUNC(recomp_get_camera_inputs);
+    //REGISTER_FUNC(recomp_get_targeting_mode);
+    //REGISTER_FUNC(recomp_get_bgm_volume);
+    //REGISTER_FUNC(recomp_get_low_health_beeps_enabled);
+    //REGISTER_FUNC(recomp_get_gyro_deltas);
+    //REGISTER_FUNC(recomp_get_mouse_deltas);
+    //REGISTER_FUNC(recomp_get_inverted_axes);
+    //REGISTER_FUNC(recomp_get_analog_inverted_axes);
     recompui::register_ui_exports();
     recomputil::register_data_api_exports();
 

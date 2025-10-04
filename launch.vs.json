@@ -5,8 +5,8 @@
     {
       "type": "default",
       "project": "CMakeLists.txt",
-      "projectTarget": "Zelda64Recompiled.exe",
-      "name": "Zelda64Recompiled.exe",
+      "projectTarget": "MarioParty3Recompiled.exe",
+      "name": "MarioParty3Recompiled.exe",
       "currentDir": "${workspaceRoot}",
       "args": ["--show-console"]
     }

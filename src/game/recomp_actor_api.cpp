@@ -8,7 +8,7 @@
 #include "ultramodern/error_handling.hpp"
 #include "recomp_ui.h"
 #include "recomp_data.h"
-#include "../patches/actor_funcs.h"
+//#include "../patches/actor_funcs.h"
 
 struct ExtensionInfo {
     // Either the actor's type ID, or 0xFFFFFFFF if this is for generic data.
