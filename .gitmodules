@@ -22,3 +22,6 @@
 [submodule "lib/marioparty3"]
 	path = lib/marioparty3
 	url = https://github.com/mariopartyrd/marioparty3
+[submodule "Mp3Syms"]
+	path = Mp3Syms
+	url = https://github.com/Rainchus/Mp3Syms
