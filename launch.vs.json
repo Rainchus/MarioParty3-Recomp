@@ -5,8 +5,8 @@
     {
       "type": "default",
       "project": "CMakeLists.txt",
-      "projectTarget": "Quest64Recompiled.exe",
-      "name": "Quest64Recompiled.exe",
+      "projectTarget": "MarioParty3-Recompiled.exe",
+      "name": "MarioParty3-Recompiled.exe",
       "currentDir": "${workspaceRoot}"
     }
   ]
