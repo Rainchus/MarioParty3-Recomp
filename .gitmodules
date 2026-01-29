@@ -22,3 +22,6 @@
 [submodule "Quest64Syms"]
 	path = Quest64Syms
 	url = https://github.com/Rainchus/Quest64Syms
+[submodule "lib/marioparty3"]
+	path = lib/marioparty3
+	url = https://github.com/mariopartyrd/marioparty3
