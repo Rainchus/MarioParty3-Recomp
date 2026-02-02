@@ -14,6 +14,7 @@
 #define osFlashWriteBuffer osFlashWriteBuffer_recomp
 #define osWritebackDCache osWritebackDCache_recomp
 #define osInvalICache osInvalICache_recomp
+#define osInvalDCache osInvalDCache_recomp
 #define osGetTime osGetTime_recomp
 
 #define osContStartReadData osContStartReadData_recomp
@@ -26,8 +27,8 @@
 #define bzero bzero_recomp
 #define gRandFloat sRandFloat
 // #include "global.h"
-#include "PR/ultratypes.h"
-#include "rt64_extended_gbi.h"
+// #include "ultratypes.h"
+// #include "rt64_extended_gbi.h"
 
 #ifndef gEXFillRectangle
 #define gEXFillRectangle(cmd, lorigin, rorigin, ulx, uly, lrx, lry) \

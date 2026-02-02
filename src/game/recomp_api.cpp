@@ -13,6 +13,25 @@
 // #include "../patches/sound.h"
 #include "ultramodern/ultramodern.hpp"
 #include "ultramodern/config.hpp"
+#include "librecomp/addresses.hpp"
+
+constexpr uint32_t k1_to_phys(uint32_t addr);
+
+extern "C" void osPiReadIo_recomp(RDRAM_ARG recomp_context * ctx) {
+    uint32_t devAddr = recomp::rom_base | ctx->r4;
+    gpr dramAddr = ctx->r5;
+    uint32_t physical_addr = k1_to_phys(devAddr);
+
+    if (physical_addr > recomp::rom_base) {
+        // cart rom
+        recomp::do_rom_pio(PASS_RDRAM dramAddr, physical_addr);
+    } else {
+        // sram
+        assert(false && "SRAM ReadIo unimplemented");
+    }
+
+    ctx->r2 = 0;
+}
 
 extern "C" void recomp_update_inputs(uint8_t* rdram, recomp_context* ctx) {
     recomp::poll_inputs();

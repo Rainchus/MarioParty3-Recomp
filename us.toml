@@ -3,7 +3,9 @@
 [input]
 entrypoint = 0x80000400
 # Paths are relative to the location of this config file.
-elf_path = "marioparty3.elf"
+#elf_path = "marioparty3.elf"
+rom_file_path = "marioparty3.z64"
+symbols_file_path = "Mp3Syms/dump.toml"
 output_func_path = "RecompiledFuncs"
 
 [patches]
@@ -13,28 +15,45 @@ stubs = [
     "func_800818C8_824C8",
 ]
 
+ignored = [
+    "sqrtf_recomp",
+    "bzero_recomp",
+]
+
 
 #patch a load_overlays call in, move an instruction an NOP the original
+#[[patches.hook]]
+#func = "OvlLoad"
+#text = """ctx->r6 = SUB32(ctx->r3, ctx->r6);
+    #load_overlays(ctx->r4, ctx->r5, ctx->r6);"""
+#before_vram = 0x8000B320
+
+#NOP instruction we moved
+#[[patches.instruction]]
+#func = "OvlLoad"
+#vram = 0x8000B324
+#value = 0x00000000 #NOP -> ctx->r6 = SUB32(ctx->r3, ctx->r6); as it was done in the above hook
+
 [[patches.hook]]
-func = "OvlLoad"
-text = """ctx->r6 = SUB32(ctx->r3, ctx->r6);
-    load_overlays(ctx->r4, ctx->r5, ctx->r6);"""
-before_vram = 0x8000B320
+func = "dmaReadOvl"
+text = "load_overlays(ctx->r4, ctx->r5, ctx->r6);"
+before_vram = 0x8004DB14
+
+#[[patches.hook]]
+#func = "func_8000B1A0_BDA0"
+#text = """ctx->r6 = SUB32(ctx->r17, ctx->r18);
+    #load_overlays(ctx->r4, ctx->r5, ctx->r6);"""
+#before_vram = 0x8000B248
+
 
 #NOP instruction we moved
 [[patches.instruction]]
-func = "OvlLoad"
-vram = 0x8000B324
-value = 0x00000000 #NOP -> ctx->r6 = SUB32(ctx->r3, ctx->r6); as it was done in the above hook
-
-[[patches.hook]]
-func = "func_8000B1A0_BDA0"
-text = """ctx->r6 = SUB32(ctx->r17, ctx->r18);
-    load_overlays(ctx->r4, ctx->r5, ctx->r6);"""
-before_vram = 0x8000B248
+func = "omMain"
+vram = 0x80048540
+value = 0x00000000 #print debug info
 
 #NOP instruction we moved
-[[patches.instruction]]
-func = "func_8000B1A0_BDA0"
-vram = 0x8000B24C
-value = 0x00000000 #NOP -> ctx->r6 = SUB32(ctx->r17, ctx->r18); as it was done in the above hook
+#[[patches.instruction]]
+#func = "func_8000B1A0_BDA0"
+#vram = 0x8000B24C
+#value = 0x00000000 #NOP -> ctx->r6 = SUB32(ctx->r17, ctx->r18); as it was done in the above hook

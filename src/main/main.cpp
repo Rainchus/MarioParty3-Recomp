@@ -41,7 +41,7 @@
 #include "librecomp/helpers.hpp"
 
 #include "../../patches/graphics.h"
-#include "../../patches/input.h"
+//#include "../../patches/input.h"
 #include "../../patches/sound.h"
 #include "../../patches/misc_funcs.h"
 
@@ -349,14 +349,14 @@ gpr get_entrypoint_address();
 // array of supported GameEntry objects
 std::vector<recomp::GameEntry> supported_games = {
     {
-        .rom_hash = 0x35335bf69fc6515cULL,
-        .internal_name = "Quest 64",
-        .game_id = u8"quest64_us",
-        .mod_game_id = "qs64",
-        .save_type = recomp::SaveType::AllowAll,
+        .rom_hash = 0x39f865d6ec68e629ULL,
+        .internal_name = "MarioParty3",
+        .game_id = u8"MP3",
+        .save_type = recomp::SaveType::Eep16k,
         .is_enabled = true,
         .entrypoint_address = get_entrypoint_address(),
         .entrypoint = recomp_entrypoint,
+        //.on_init_callback = nullptr,
     },
 };
 
@@ -640,19 +640,19 @@ int main(int argc, char** argv) {
     //recomp::mods::register_embedded_mod("mm_recomp_dpad_builtin", { (const uint8_t*)(mm_recomp_dpad_builtin), std::size(mm_recomp_dpad_builtin)});
 
     //REGISTER_FUNC(recomp_get_window_resolution);
-    REGISTER_FUNC(recomp_get_target_aspect_ratio);
+    //REGISTER_FUNC(recomp_get_target_aspect_ratio);
     REGISTER_FUNC(recomp_get_target_framerate);
-    REGISTER_FUNC(recomp_get_film_grain_enabled);
-    REGISTER_FUNC(recomp_get_invert_y_axis_mode);
-    REGISTER_FUNC(recomp_get_radio_comm_box_mode);
-    REGISTER_FUNC(recomp_get_camera_inputs);
-    REGISTER_FUNC(recomp_get_targeting_mode);
+    //REGISTER_FUNC(recomp_get_film_grain_enabled);
+    //REGISTER_FUNC(recomp_get_invert_y_axis_mode);
+    //REGISTER_FUNC(recomp_get_radio_comm_box_mode);
+    //REGISTER_FUNC(recomp_get_camera_inputs);
+    //REGISTER_FUNC(recomp_get_targeting_mode);
     REGISTER_FUNC(recomp_get_bgm_volume);
     REGISTER_FUNC(recomp_get_low_health_beeps_enabled);
-    REGISTER_FUNC(recomp_get_gyro_deltas);
-    REGISTER_FUNC(recomp_get_mouse_deltas);
-    REGISTER_FUNC(recomp_get_inverted_axes);
-    REGISTER_FUNC(recomp_get_analog_inverted_axes);
+    //REGISTER_FUNC(recomp_get_gyro_deltas);
+    //REGISTER_FUNC(recomp_get_mouse_deltas);
+    //REGISTER_FUNC(recomp_get_inverted_axes);
+    //REGISTER_FUNC(recomp_get_analog_inverted_axes);
     recompui::register_ui_exports();
     recomputil::register_data_api_exports();
 

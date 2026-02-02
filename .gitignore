@@ -1,12 +1,11 @@
 # VSCode file settings
 .vscode/settings.json
-# .vscode/c_cpp_properties.json
+.vscode/c_cpp_properties.json
 .vscode/launch.json
 
 # Input elf and rom files
 *.elf
 *.z64
-*.map
 
 # Output C files
 RecompiledFuncs/
@@ -21,13 +20,6 @@ build/
 *.dll
 *.lib
 *.pdb
-
-# Data dumps
-data_dump.toml
-dump.toml
-
-# Local backups
-backups
 
 # User-specific files
 *.rsuser
@@ -71,7 +63,5 @@ RSPRecomp
 # Controller mappings file
 gamecontrollerdb.txt
 
-# audio data
-patches/audio_jp
-patches/audio_us
-patches/audio_eu
+# Temp files
+src/main/*TMP
