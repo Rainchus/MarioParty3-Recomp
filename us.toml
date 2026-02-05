@@ -51,9 +51,3 @@ before_vram = 0x8004DB14
 func = "omMain"
 vram = 0x80048540
 value = 0x00000000 #print debug info
-
-#NOP instruction we moved
-#[[patches.instruction]]
-#func = "func_8000B1A0_BDA0"
-#vram = 0x8000B24C
-#value = 0x00000000 #NOP -> ctx->r6 = SUB32(ctx->r17, ctx->r18); as it was done in the above hook

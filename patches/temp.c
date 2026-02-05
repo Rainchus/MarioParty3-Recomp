@@ -154,7 +154,8 @@ typedef struct Process {
 /* 0x30 */ s32 yield_value;
 /* 0x34 */ s32 coro_func;
 /* 0x38 */ s32 mips_sp;
-/* 0x3C */ char unk_3C[0x4C]; //part of jmp_buf but we dont need it anymore. pad the struct out so the other offsets are the same
+/* 0x3C */ char unk_3C[0x48]; //part of jmp_buf but we dont need it anymore. pad the struct out so the other offsets are the same
+/* 0x84 */ s32 dtor_idxCopy;
 /* 0x88 */ process_func destructor;
 /* 0x8C */ void *user_data;
 } Process;
@@ -349,9 +350,9 @@ RECOMP_PATCH Process* HuPrcCreate(process_func func, u16 priority, s32 stack_siz
     process->yield_value = 0;
     process->coro_func = (s32)func;
     process->mips_sp = stack_size;  // Store stack size
-    process->dtor_idx = allocate_process_id();  // Use recycled IDs
+    process->dtor_idxCopy = allocate_process_id();  // Use recycled IDs
     
-    if (process->dtor_idx == 0) {
+    if (process->dtor_idxCopy == 0) {
         // Out of process IDs!
         HuMemMemoryFreePerm(process_heap);
         return NULL;
@@ -480,12 +481,12 @@ RECOMP_PATCH void HuPrcTerminate(Process* process)
     
     // Destroy coroutine if it was created
     if (process->coro_created) {
-        recomp_process_coro_destroy(process->dtor_idx);
+        recomp_process_coro_destroy(process->dtor_idxCopy);
         process->coro_created = 0;
     }
     
     // Free the process ID for reuse
-    free_process_id(process->dtor_idx);
+    free_process_id(process->dtor_idxCopy);
     
     UnlinkProcess(&top_process, process);
     process_count--;
@@ -605,13 +606,13 @@ RECOMP_PATCH void HuPrcCall(s32 time)
                     // Calculate actual MIPS SP (top of stack)
                     u32 mips_sp = (u32) cur_proc_local->base_sp + 8;
 
-                    recomp_process_coro_create(cur_proc_local->dtor_idx, cur_proc_local->coro_func, stack_size,
+                    recomp_process_coro_create(cur_proc_local->dtor_idxCopy, cur_proc_local->coro_func, stack_size,
                                                mips_sp);
                     cur_proc_local->coro_created = 1;
                 }
 
                 // Switch to this process and wait for it to yield
-                yield_reason = recomp_process_switch_to(cur_proc_local->dtor_idx, 1);
+                yield_reason = recomp_process_switch_to(cur_proc_local->dtor_idxCopy, 1);
 
                 // Handle yield reasons
                 if (yield_reason == YIELD_TERMINATE) {
@@ -637,12 +638,12 @@ RECOMP_PATCH void* HuPrcAllocMem(s32 size)
         return NULL;
     }
     
-    recomp_printf("HuPrcAllocMem: process->heap=%p, process->dtor_idx=%d\n", 
-           process->heap, process->dtor_idx);
+    recomp_printf("HuPrcAllocMem: process->heap=%p, process->dtor_idxCopy=%d\n", 
+           process->heap, process->dtor_idxCopy);
     
     if (process->heap == NULL) {
         recomp_printf("HuPrcAllocMem: ERROR - process->heap is NULL for process %d!\n", 
-               process->dtor_idx);
+               process->dtor_idxCopy);
         return NULL;
     }
     
@@ -805,8 +806,6 @@ extern HeapNode* perm_heap_addr;
 // Temp Heap created at FFFFFFFF80128000, size: 00018000
 
 RECOMP_PATCH HeapNode* HuMemHeapInitPerm(void* ptr, u32 size) {
-    ptr = (void*)0x80400000;
-    size *= 2;
     bzero(ptr, size);
     perm_heap_addr = (HeapNode*) HuMemHeapInit(ptr, size);
     recomp_printf("Perm Heap created at %08lX, size: %08X\n", perm_heap_addr, size);
@@ -832,6 +831,7 @@ RECOMP_PATCH HeapNode* HuMemHeapInitTemp(void* ptr, u32 size) {
 #define MIN_HEAP_NODE_SIZE sizeof(HeapNode) + MIN_ALLOC_SIZE
 
 extern s32 D_800A0530_A1130;
+extern Gfx* gMainGfxPos;
 
 RECOMP_PATCH void* HuMemMemoryAlloc(HeapNode* heap, s32 size)
 {
@@ -841,6 +841,7 @@ RECOMP_PATCH void* HuMemMemoryAlloc(HeapNode* heap, s32 size)
     size = ALIGN_16(size);
 
     cur_heap = heap;
+
     do
     {
 
@@ -895,10 +896,185 @@ RECOMP_PATCH s32 omOvlCallEx(s32 ovlID, s16 event, u16 stat) {
         return FALSE;
     }
 
+    // if (ovlID == 0x7A) {
+    //     ovlID = 0x7F; //if loading intro, load debug overlay
+    // }
+
     history = &omovlhis[++omovlhisidx];
     history->overlayID = ovlID;
     history->event = event;
     history->stat = stat;
     omOvlGotoEx(ovlID, event, stat);
     return TRUE;
+}
+
+RECOMP_PATCH void* HuMemMemoryRealloc(HeapNode *heap, void *mem, u32 new_size)
+{
+    void *ret;
+    HeapNode *given_heap;
+    HeapNode *new_heap;
+    s32 temp;
+
+    static int realloc_counter = 0;
+    realloc_counter++;
+    recomp_printf("=== REALLOC #%d: mem=%p new_size=%d ===", realloc_counter, mem, new_size);
+    
+    given_heap = (HeapNode *)((char*)mem - sizeof(HeapNode)); // FIX: explicit char* cast
+    temp = ALIGN_16(new_size);
+    
+    if (given_heap->size >= temp)
+    {
+        if ((u32)(given_heap->size - temp) > MIN_HEAP_NODE_SIZE)
+        {
+            new_heap = (HeapNode*)((char*)given_heap + temp); // FIX: char* arithmetic
+            new_heap->size = given_heap->size - temp;
+            new_heap->heap_constant = HEAP_CONSTANT;
+            new_heap->active = FALSE;
+            given_heap->next->prev = new_heap;
+            new_heap->next = given_heap->next;
+            given_heap->next = new_heap;
+            new_heap->prev = given_heap;
+            given_heap->size = temp;
+        }
+        return (void*)((char*)given_heap + sizeof(HeapNode)); // FIX: char* arithmetic
+    }
+    else
+    {
+        ret = HuMemMemoryAlloc(heap, new_size);
+        if (ret != NULL)
+        {
+            // The size field contains just the data size (without header)
+        {
+            char* dst = (char*)ret;
+            char* src = (char*)mem;
+            s32 count = given_heap->size;
+            while (count--) {
+                *dst++ = *src++;
+            }
+        }
+            HuMemMemoryFree(mem);
+        }
+        return ret;
+    }
+    
+    return NULL;
+}
+
+extern u32 D_800A1200_A1E00[];
+extern u32 D_800A11F0_A1DF0[];
+extern s32 D_800A1210_A1E10[];
+extern u32 D_800A1220_A1E20[];
+extern s32 D_800A1230_A1E30[];
+
+// RECOMP_PATCH void func_8003465C_3525C(Gfx** gfxPtr, u32 texAddr, s32 fmt, s32 siz, s32 width, s32 height, s32 scaleS, s32 scaleT, s32 texWidth, s32 texHeight, s32 cm_s, s32 mask_s, s32 shift_s, s32 cm_t, s32 mask_t, s32 shift_t, s32 pal) {
+//     Gfx* gfx;
+//     u32 lineWidth;
+//     u32 lineSize;
+//     u32 t;
+//     u32 dxt;
+
+//     recomp_printf("gfxPtr is %08lX\n", gfxPtr);
+    
+//     // gfx = *gfxPtr;
+//     // texAddr += (width * scaleT) << (siz - 1);
+    
+//     // gDPSetTextureImage(gfx++, fmt, D_800A1210_A1E10[siz], 1, texAddr);
+//     // gDPSetTile(gfx++, fmt, D_800A1210_A1E10[siz], 0, 0, G_TX_LOADTILE, 0, cm_t, mask_t, shift_t, cm_s, mask_s, shift_s);
+//     // gDPLoadSync(gfx++);
+    
+//     // lineWidth = (width * D_800A11F0_A1DF0[siz]) >> 3;
+//     // lineSize = lineWidth ? (lineWidth + 0x7FF) : 0x800;
+    
+//     // t = ((((width * height) + D_800A1220_A1E20[siz]) >> D_800A1230_A1E30[siz]) - 1);
+//     // if (t >= 0x800) {
+//     //     t = 0x7FF;
+//     // }
+    
+//     // gDPLoadBlock(gfx++, G_TX_LOADTILE, 0, 0, t, lineSize / lineWidth);
+//     gDPPipeSync(gfx++);
+    
+//     // gDPSetTile(gfx++, fmt, siz, (width * D_800A1200_A1E00[siz] + 7) >> 3, 0, G_TX_RENDERTILE, pal, cm_t, mask_t, shift_t, cm_s, mask_s, shift_s);
+//     // gDPSetTileSize(gfx++, G_TX_RENDERTILE, texWidth * 4, scaleS * 4, texHeight * 4, scaleT * 4);
+    
+//     *gfxPtr = gfx;
+// }
+
+extern void* D_800CCF38_CDB38;
+
+void func_8000BA30_C630(void);
+void func_80014A3C_1563C(s32);
+void func_8001B0B4_1BCB4(void**, s32);
+u8 rand8(void);
+
+void HmfLightInit(void);                                   /* extern */
+void* HuMemAlloc(s32);                                /* extern */
+void HuMemInit(void);                                      /* extern */
+void func_80030040_30C40(void);                            /* extern */
+void func_80031560_32160(void);                            /* extern */
+extern u8 D_800A0AD0_A16D0[];
+extern u16 D_800C9528_CA128;
+extern s8 D_800CB8B0_CC4B0;
+extern s8 D_800CC0A8_CCCA8;
+extern s16 D_800CC0B6_CCCB6;
+extern void* D_800CC0BC_CCCBC;
+extern void* D_800CD1B8_CDDB8[];
+extern u8 D_800CDA84_CE684;
+extern s8 D_800CE1C6_CEDC6;
+extern s32 D_800CE1D4_CEDD4;
+extern u8 D_800D0599_D1199;
+extern s8 D_800D10F0_D1CF0;
+extern void* D_800D1F38_D2B38[];
+extern s16 D_800D1FEE_D2BEE;
+extern u8 D_800D1FF0_D2BF0;
+extern void* D_800D2070_D2C70[];
+extern u8 D_800D41C4_D4DC4;
+extern f32 D_800D51FC_D5DFC;
+extern f32 D_800D5410_D6010;
+extern void* D_800D6A98_D7698[];
+extern s16 D_800D6B64_D7764;
+
+extern u8 D_800D2008_D2C08;
+extern u16 D_800D5306_D5F06;
+
+RECOMP_PATCH void func_800222B0_22EB0(void** arg0, s32 arg1, u16 arg2, u16 arg3, u16 arg4, u8 arg5) {
+    s16 temp_v0;
+    s16 temp_v0_2;
+    s16 var_s1;
+    s16 var_s1_2;
+    s32 temp_s0;
+    s16 i;
+
+    D_800D1FF0_D2BF0 = arg5;
+    D_800D2008_D2C08 = 0;
+    HuMemInit();
+    D_800D1FEE_D2BEE = arg2;
+    D_800C9528_CA128 = arg4;
+    D_800D5306_D5F06 = arg3;
+
+    for (i = 0; i < arg5; i++) {
+        D_800D6A98_D7698[i] = HuMemAlloc(arg2 * 16);
+        D_800CD1B8_CDDB8[i] = HuMemAlloc(arg4 << 6);
+        D_800D1F38_D2B38[i] = HuMemAlloc(arg3 * 8);
+    }
+    
+    for (i = 0; i < 8; i++) {
+        D_800D2070_D2C70[i] = HuMemAlloc(D_800A0AD0_A16D0[i] * 8);
+    }
+
+    D_800CC0BC_CCCBC = HuMemAlloc(0x8400);
+    D_800CE1D4_CEDD4 = 0;
+    HmfLightInit();
+    func_80031560_32160();
+    func_80030040_30C40();
+    D_800CB8B0_CC4B0 = 1;
+    D_800D10F0_D1CF0 = 2;
+    D_800D5410_D6010 = 1.0f;
+    D_800D51FC_D5DFC = 1.0f;
+    D_800CE1C6_CEDC6 = 0;
+    D_800CDA84_CE684 = -1;
+    D_800D41C4_D4DC4 = -1;
+    D_800D0599_D1199 = -1;
+    D_800D6B64_D7764 = 0x3B6;
+    D_800CC0B6_CCCB6 = 0x3E8;
+    D_800CC0A8_CCCA8 = 1;
 }

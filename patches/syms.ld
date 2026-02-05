@@ -56,3 +56,4 @@ recomp_process_is_started = 0x8F000120;
 recomp_process_set_started = 0x8F000124;
 osInvalDCache_recomp = 0x8F000128;
 unload_overlays = 0x8F00012C;
+yield_self_1ms = 0x8F000130;
