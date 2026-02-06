@@ -254,6 +254,10 @@ static s32 yield_to_scheduler(s32 reason) {
     return recomp_process_yield(reason);
 }
 
+// pending heap to free after a process terminates itself
+// the scheduler sets this before yielding and checks it after
+static void* g_pending_heap_free = NULL;
+
 RECOMP_PATCH void HuPrcSysInit()
 {
     // Initialize coroutine system first
@@ -472,29 +476,29 @@ RECOMP_PATCH void HuPrcChildKill(Process* process)
 
 RECOMP_PATCH void HuPrcTerminate(Process* process)
 {
-    void* heap_to_free = process->heap;
-    
     if (process->destructor)
     {
         process->destructor();
     }
     
-    // Destroy coroutine if it was created
-    if (process->coro_created) {
-        recomp_process_coro_destroy(process->dtor_idxCopy);
-        process->coro_created = 0;
-    }
-    
-    // Free the process ID for reuse
-    free_process_id(process->dtor_idxCopy);
-    
+    // save heap pointer before we do anything else.
+    // the process struct lives inside this heap, so we have to
+    // read everything we need before freeing
+    void* heap_to_free = process->heap;
+    u32 process_id = process->dtor_idxCopy;
+  
     UnlinkProcess(&top_process, process);
     process_count--;
+
+    // store heap pointer in global so scheduler can free it
+    // we can't store it in the process struct because that's inside the heap
+    g_pending_heap_free = heap_to_free;
     
-    // Free the heap immediately before yielding
-    HuMemMemoryFreePerm(heap_to_free);
+    // Free the process ID for reuse
+    free_process_id(process_id);
     
-    // Yield back to scheduler with terminate signal
+    // Yield back to scheduler. the coroutine will be in DEAD state
+    // after this, and the scheduler will destroy it + free the heap
     yield_to_scheduler(YIELD_TERMINATE);
 }
 
@@ -541,38 +545,32 @@ RECOMP_PATCH void HuPrcCurrentDtor(process_func destructor)
 RECOMP_PATCH void HuPrcCall(s32 time)
 {
     Process* cur_proc_local;
+    Process* next_proc;
     s32 yield_reason;
 
     current_process = top_process;
-    
-    while (1)
-    {
+
+    while (1) {
         cur_proc_local = current_process;
-        if (cur_proc_local == NULL)
-        {
+        if (cur_proc_local == NULL) {
             break;
         }
 
-        // Update sPrcSleepLoc if needed (this was reading from jmp_buf stack)
-        // For now, set to a safe value since we don't have direct MIPS stack access
+        // Update sPrcSleepLoc if needed
         sPrcSleepLoc = 0;
-         
+
         // Check stat flag
-        if ((cur_proc_local->stat & 0x1))
-        {
-            if (cur_proc_local->exec_mode != 3)
-            {
+        if (cur_proc_local->stat & 0x1) {
+            if (cur_proc_local->exec_mode != 3) {
                 current_process = current_process->next;
                 continue;
             }
         }
 
         // Handle different execution modes
-        switch (cur_proc_local->exec_mode)
-        {
+        switch (cur_proc_local->exec_mode) {
             case EXEC_PROCESS_SLEEPING:
-                if (cur_proc_local->sleep_time > 0 && (cur_proc_local->sleep_time -= time) <= 0)
-                {
+                if (cur_proc_local->sleep_time > 0 && (cur_proc_local->sleep_time -= time) <= 0) {
                     cur_proc_local->sleep_time = 0;
                     cur_proc_local->exec_mode = EXEC_PROCESS_DEFAULT;
                 }
@@ -580,12 +578,9 @@ RECOMP_PATCH void HuPrcCall(s32 time)
                 break;
 
             case EXEC_PROCESS_WATCH:
-                if (cur_proc_local->oldest_child != 0)
-                {
+                if (cur_proc_local->oldest_child != 0) {
                     current_process = current_process->next;
-                }
-                else
-                {
+                } else {
                     cur_proc_local->exec_mode = EXEC_PROCESS_DEFAULT;
                     // Fall through to run the process
                     goto run_process;
@@ -593,10 +588,15 @@ RECOMP_PATCH void HuPrcCall(s32 time)
                 break;
 
             case EXEC_PROCESS_DEAD:
-                // Process is dead, call exit function
-                cur_proc_local->coro_func = (s32)HuPrcExit;
+                // Process is dead, need to run HuPrcExit on it
+                // Destroy old coroutine first if it exists
+                if (cur_proc_local->coro_created) {
+                    recomp_process_coro_destroy(cur_proc_local->dtor_idxCopy);
+                    cur_proc_local->coro_created = 0;
+                }
+
+                cur_proc_local->coro_func = (s32) HuPrcExit;
                 // Fall through to run exit
-                
             case EXEC_PROCESS_DEFAULT:
             run_process:
                 // Create coroutine on first run
@@ -611,22 +611,38 @@ RECOMP_PATCH void HuPrcCall(s32 time)
                     cur_proc_local->coro_created = 1;
                 }
 
+                // Save next pointer BEFORE switching, because the process
+                // may terminate itself and free its memory
+                next_proc = cur_proc_local->next;
+
+                // Clear pending free
+                g_pending_heap_free = NULL;
+
                 // Switch to this process and wait for it to yield
                 yield_reason = recomp_process_switch_to(cur_proc_local->dtor_idxCopy, 1);
 
                 // Handle yield reasons
                 if (yield_reason == YIELD_TERMINATE) {
-                    // Process terminated itself and already freed its memory
-                    // Just move to next process
-                    current_process = current_process->next;
+                    // Process terminated itself
+                    recomp_process_coro_destroy(cur_proc_local->dtor_idxCopy);
+
+                    // Free the heap that the process stored for us
+                    if (g_pending_heap_free != NULL) {
+                        HuMemMemoryFreePerm(g_pending_heap_free);
+                        g_pending_heap_free = NULL;
+                    }
+
+                    // Use saved next pointer since process is now freed
+                    current_process = next_proc;
                 } else {
-                    // YIELD_NORMAL - just move to next process
-                    current_process = current_process->next;
+                    // YIELD_NORMAL
+                    current_process = cur_proc_local->next;
                 }
                 break;
         }
     }
 }
+
 
 RECOMP_PATCH void* HuPrcAllocMem(s32 size)
 {
@@ -828,7 +844,7 @@ RECOMP_PATCH HeapNode* HuMemHeapInitTemp(void* ptr, u32 size) {
 #define HEAP_CONSTANT 0xA5
 #define MIN_ALLOC_SIZE 16
 
-#define MIN_HEAP_NODE_SIZE sizeof(HeapNode) + MIN_ALLOC_SIZE
+#define MIN_HEAP_NODE_SIZE (sizeof(HeapNode) + MIN_ALLOC_SIZE)
 
 extern s32 D_800A0530_A1130;
 extern Gfx* gMainGfxPos;

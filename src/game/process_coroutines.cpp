@@ -16,7 +16,7 @@
 #include "minicoro.h"
 
 // Maximum number of concurrent processes (matches game's process pool size)
-static constexpr size_t MAX_PROCESSES = 0x50;
+static constexpr size_t MAX_PROCESSES = 256;
 
 // Minimum native stack size for coroutines (native code needs more than MIPS)
 static constexpr size_t MIN_NATIVE_STACK = 0x80000;  // 512KB
